@@ -72,7 +72,6 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const [newIds, setNewIds] = useState<Set<string>>(new Set());
   const [total, setTotal] = useState(0); // total cents fed to the pit
   // Post-checkout state, seeded from the Stripe redirect path.
   const [checkout, setCheckout] = useState<null | "success" | "cancel">(() => {
@@ -115,7 +114,7 @@ export function App() {
       .from("messages")
       .select(MESSAGE_COLUMNS)
       .eq("paid", true)
-      .order("paid_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .limit(PAGE_SIZE)
       .then(({ data, error }) => {
         if (!active) return;
@@ -170,12 +169,11 @@ export function App() {
             row?.paid === true &&
             !row.refunded_at;
           if (visible) {
-            // First time we've seen this paid message → drop it into the pit
-            // and flag it so the feed entry pops in.
+            // First time we've seen this paid message → drop it into the pit.
+            // (The feed entry animates itself in via CSS on mount.)
             if (!knownIds.current.has(id)) {
               knownIds.current.add(id);
               vortex.current?.drop((row as PitMessage).amount_cents);
-              setNewIds((prev) => new Set(prev).add(id));
               audio.blip();
               setTotal((t) => t + (row as PitMessage).amount_cents);
             }
@@ -207,15 +205,15 @@ export function App() {
   const loadMore = useCallback(async () => {
     if (!supabase || loadingMore.current) return;
     const list = messagesRef.current;
-    const cursor = list.length ? list[list.length - 1].paid_at : null;
+    const cursor = list.length ? list[list.length - 1].created_at : null;
     if (!cursor) return;
     loadingMore.current = true;
     const { data, error } = await supabase
       .from("messages")
       .select(MESSAGE_COLUMNS)
       .eq("paid", true)
-      .lt("paid_at", cursor)
-      .order("paid_at", { ascending: false })
+      .lt("created_at", cursor)
+      .order("created_at", { ascending: false })
       .limit(PAGE_SIZE);
     loadingMore.current = false;
     if (error || !data) return;
@@ -286,15 +284,6 @@ export function App() {
       clearTimeout(timer);
     };
   }, [checkout]);
-
-  function dismissNew(id: string) {
-    setNewIds((prev) => {
-      if (!prev.has(id)) return prev;
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -578,13 +567,13 @@ export function App() {
         ) : (
           <>
             <ul className={styles.feed}>
-              {messages.map((m) => (
+              {messages.map((m, i) => (
                 <li
                   key={m.id}
-                  className={`${styles.entry} ${
-                    newIds.has(m.id) ? styles.entryNew : ""
-                  }`}
-                  onAnimationEnd={() => dismissNew(m.id)}
+                  className={styles.entry}
+                  // Stagger the first dozen so the initial feed cascades in;
+                  // paginated/live items (higher index) animate immediately.
+                  style={{ animationDelay: `${i < 12 ? i * 45 : 0}ms` }}
                 >
                   <div className={styles.entryHead}>
                     <span className={styles.entryName}>
