@@ -24,6 +24,10 @@ const FAQS: { q: string; a: string }[] = [
     q: "What is the point of this?",
     a: "The Pit is a little moment of shared experience, a reminder of the passage of time and the impermanence of all things. It's a place to reflect on the past, acknowledge the present, and contemplate the future.",
   },
+  {
+    q: "What if I have a problem?",
+    a: "If you have any issues with the site or your payment, please contact us at <a href='mailto:thepitdotbiz@gmail.com'>thepitdotbiz@gmail.com</a>.",
+  },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 
