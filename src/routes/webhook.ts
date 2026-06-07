@@ -66,6 +66,11 @@ webhook.post('/', async (c) => {
             paid: true,
             paid_at: new Date().toISOString(),
             amount_cents: session.amount_total ?? undefined,
+            // Stored so a later charge.refunded can find this message.
+            stripe_payment_intent_id:
+              typeof session.payment_intent === 'string'
+                ? session.payment_intent
+                : null,
           })
           .eq('id', messageId);
       }
@@ -87,7 +92,25 @@ webhook.post('/', async (c) => {
       break;
     }
 
-    // Add more as you need them: charge.refunded, payment_intent.payment_failed, etc.
+    case 'charge.refunded': {
+      const charge = event.data.object as Stripe.Charge;
+      const paymentIntentId =
+        typeof charge.payment_intent === 'string' ? charge.payment_intent : null;
+      if (paymentIntentId) {
+        // A full refund un-publishes the message (RLS hides refunded_at rows).
+        // A partial refund leaves it up but reflects the net amount kept.
+        const update = charge.refunded
+          ? { refunded_at: new Date().toISOString() }
+          : { amount_cents: charge.amount - charge.amount_refunded };
+        await supabase
+          .from('messages')
+          .update(update)
+          .eq('stripe_payment_intent_id', paymentIntentId);
+      }
+      break;
+    }
+
+    // Add more as you need them: payment_intent.payment_failed, etc.
     default:
       break;
   }

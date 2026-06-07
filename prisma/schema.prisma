@@ -21,18 +21,23 @@ datasource db {
 /// paid by the verified Stripe webhook. Only paid rows are publicly visible
 /// (see sql/rls_and_realtime.sql).
 model Message {
-  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name            String    @db.VarChar(80)
-  message         String    @db.VarChar(500)
-  amountCents     Int       @map("amount_cents")
-  currency        String    @default("usd")
-  paid            Boolean   @default(false)
-  stripeSessionId String?   @map("stripe_session_id")
-  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  paidAt          DateTime? @map("paid_at") @db.Timestamptz(6)
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name                  String    @db.VarChar(80)
+  message               String    @db.VarChar(500)
+  amountCents           Int       @map("amount_cents")
+  currency              String    @default("usd")
+  paid                  Boolean   @default(false)
+  stripeSessionId       String?   @map("stripe_session_id")
+  stripePaymentIntentId String?   @map("stripe_payment_intent_id")
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  paidAt                DateTime? @map("paid_at") @db.Timestamptz(6)
+  // Set when the payment is refunded; refunded messages drop out of the feed.
+  refundedAt            DateTime? @map("refunded_at") @db.Timestamptz(6)
 
   // The public feed reads paid rows newest-first.
   @@index([paid, createdAt])
+  // The refund webhook looks a message up by its payment intent.
+  @@index([stripePaymentIntentId])
   @@map("messages")
 }
 

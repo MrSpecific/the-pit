@@ -14,12 +14,14 @@
 alter table public.messages       enable row level security;
 alter table public.webhook_events enable row level security;
 
--- Messages: anyone may read PAID messages. There is no public insert/update;
--- the only writer is the Worker (service role), so unpaid rows stay invisible
--- to the browser and to Realtime subscribers until the webhook marks them paid.
+-- Messages: anyone may read PAID, non-refunded messages. There is no public
+-- insert/update; the only writer is the Worker (service role), so unpaid rows
+-- stay invisible to the browser and to Realtime until the webhook marks them
+-- paid — and refunded messages drop back out of view.
+drop policy if exists "Paid messages are public" on public.messages;
 create policy "Paid messages are public"
   on public.messages for select
-  using (paid = true);
+  using (paid = true and refunded_at is null);
 
 -- webhook_events: no policies => no browser access at all (service role only).
 

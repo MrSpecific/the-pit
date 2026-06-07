@@ -48,11 +48,24 @@ export function App() {
         "postgres_changes",
         { event: "*", schema: "public", table: "messages" },
         (payload) => {
-          const row = payload.new as (PitMessage & { paid?: boolean }) | null;
-          if (!row || row.paid !== true) return;
-          setMessages((prev) =>
-            prev.some((m) => m.id === row.id) ? prev : [row, ...prev],
-          );
+          const row = payload.new as
+            | (PitMessage & { paid?: boolean; refunded_at?: string | null })
+            | null;
+          const old = payload.old as { id?: string } | null;
+          const id = row?.id ?? old?.id;
+          if (!id) return;
+          // A row belongs in the feed only while it's paid and not refunded;
+          // otherwise (refund, delete, un-publish) drop it.
+          const visible =
+            payload.eventType !== "DELETE" &&
+            row?.paid === true &&
+            !row.refunded_at;
+          setMessages((prev) => {
+            if (!visible) return prev.filter((m) => m.id !== id);
+            if (prev.some((m) => m.id === id))
+              return prev.map((m) => (m.id === id ? (row as PitMessage) : m));
+            return [row as PitMessage, ...prev];
+          });
         },
       )
       .subscribe();
