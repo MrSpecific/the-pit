@@ -94,8 +94,8 @@ export function useAudio(): AudioControls {
     master.gain.setTargetAtTime(0.5, ctx.currentTime, 0.25); // fade in
     if (tickTimer.current == null) {
       tickTimer.current = window.setInterval(() => {
-        if (Math.random() < 0.4) tick(ctx, master); // ~3 ticks/sec, irregular
-      }, 130);
+        if (Math.random() < 0.3) tick(ctx, master); // ~1 tick/sec, irregular
+      }, 300);
     }
   }, []);
 

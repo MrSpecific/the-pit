@@ -48,6 +48,7 @@ html {
   font-family: var(--font-mono);
   font-size: 16px;
   line-height: 1.5;
+  overflow-x: hidden;
   /* Faint vector grid behind everything. */
   background-image:
     linear-gradient(rgba(43, 255, 136, 0.035) 1px, transparent 1px),
@@ -58,6 +59,10 @@ html {
 body {
   min-height: 100vh;
   position: relative;
+  /* Disable scroll anchoring — the browser auto-adjusting scroll when
+   * off-screen content changes (our rAF vortex, drops, feed) reads as a slow
+   * self-scrolling drift. */
+  overflow-anchor: none;
 }
 
 /* Vignette — darken the edges like a curved tube. Above content, inert. */
