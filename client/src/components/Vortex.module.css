@@ -27,3 +27,13 @@
 .spokes {
   opacity: 0.32;
 }
+
+/* A paid amount falling into the pit. Inherits the svg's green glow filter;
+ * fill overrides the funnel's none-fill. */
+.amount {
+  fill: var(--green-bright);
+  stroke: none;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

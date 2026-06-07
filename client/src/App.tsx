@@ -1,6 +1,6 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { supabase } from "./lib/supabase";
-import { Vortex } from "./components/Vortex";
+import { Vortex, type VortexHandle } from "./components/Vortex";
 import { MESSAGE_COLUMNS, type PitMessage } from "./types";
 import styles from "./App.module.css";
 
@@ -17,6 +17,10 @@ export function App() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const vortex = useRef<VortexHandle>(null);
+  // Ids we've already shown, so realtime fires the pit animation only for
+  // genuinely new arrivals (not the initial load or in-place updates).
+  const knownIds = useRef<Set<string>>(new Set());
 
   // Load the existing feed, then subscribe for new paid messages. A row is
   // inserted hidden (paid = false) and only becomes visible — to this query and
@@ -26,6 +30,7 @@ export function App() {
     if (!supabase) return;
     const client = supabase;
     let active = true;
+    const timers: ReturnType<typeof setTimeout>[] = [];
 
     client
       .from("messages")
@@ -39,7 +44,21 @@ export function App() {
           setError(error.message);
           return;
         }
-        setMessages((data ?? []) as PitMessage[]);
+        const rows = (data ?? []) as PitMessage[];
+        rows.forEach((m) => knownIds.current.add(m.id));
+        setMessages(rows);
+
+        // Seed the pit with the most recent amounts, staggered with a
+        // semi-random gap so arrivals feel organic rather than synchronized.
+        let delay = 500;
+        rows.slice(0, 3).forEach((m) => {
+          timers.push(
+            setTimeout(() => {
+              if (active) vortex.current?.drop(m.amount_cents);
+            }, delay),
+          );
+          delay += 700 + Math.random() * 900;
+        });
       });
 
     const channel = client
@@ -60,6 +79,15 @@ export function App() {
             payload.eventType !== "DELETE" &&
             row?.paid === true &&
             !row.refunded_at;
+          if (visible) {
+            // First time we've seen this paid message → drop it into the pit.
+            if (!knownIds.current.has(id)) {
+              knownIds.current.add(id);
+              vortex.current?.drop((row as PitMessage).amount_cents);
+            }
+          } else {
+            knownIds.current.delete(id);
+          }
           setMessages((prev) => {
             if (!visible) return prev.filter((m) => m.id !== id);
             if (prev.some((m) => m.id === id))
@@ -72,6 +100,7 @@ export function App() {
 
     return () => {
       active = false;
+      timers.forEach(clearTimeout);
       client.removeChannel(channel);
     };
   }, []);
@@ -103,7 +132,9 @@ export function App() {
         /* non-JSON response */
       }
       if (!res.ok || !data.url) {
-        setError(data.error ?? `Request failed (${res.status}). Please try again.`);
+        setError(
+          data.error ?? `Request failed (${res.status}). Please try again.`,
+        );
         setSubmitting(false);
         return;
       }
@@ -127,7 +158,7 @@ export function App() {
   return (
     <>
       <section className={styles.hero}>
-        <Vortex />
+        <Vortex ref={vortex} />
 
         <div className={styles.heroContent}>
           <header className={styles.header}>
@@ -135,7 +166,7 @@ export function App() {
             <span className={styles.kicker}>to</span>
             <h1 className={styles.title}>The Pit</h1>
             <p className={styles.tagline}>
-              drop a message into the void
+              how much money do you want to throw in the pit?
               <span className={styles.cursor} aria-hidden="true" />
             </p>
           </header>
@@ -153,7 +184,7 @@ export function App() {
               aria-expanded={false}
               onClick={() => setFormOpen(true)}
             >
-              [ drop a message ]
+              [ drop money ]
             </button>
           ) : (
             <form className={styles.form} onSubmit={handleSubmit}>

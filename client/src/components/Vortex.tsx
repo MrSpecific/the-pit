@@ -1,4 +1,10 @@
-import { useEffect, useRef } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from "react";
 import styles from "./Vortex.module.css";
 
 // A vector-wireframe funnel, rendered as a real 3D perspective projection.
@@ -23,6 +29,13 @@ const PITCH = (58 * Math.PI) / 180; // view tilt — look down into the pit
 const FOCAL = 900; // perspective focal length
 const CAM_DIST = 820; // camera distance to the mouth
 const SPIN_PERIOD = 70; // seconds per revolution
+
+// Amount-drop animation: a paid amount fades in near the rim, spirals inward
+// and down the funnel wall (shrinking with perspective) until it reaches the
+// throat and fades out — "sucked into the pit".
+const DROP_LIFETIME = 10200; // ms from rim to throat
+const DROP_TURNS = 2.8; // revolutions while falling
+const DROP_FONT = 10; // label size (viewBox units) at the rim
 
 type Vec3 = { x: number; y: number; z: number };
 
@@ -57,16 +70,24 @@ const THROAT: Vec3 = { x: 0, y: DEPTH, z: 0 };
 const COS_P = Math.cos(PITCH);
 const SIN_P = Math.sin(PITCH);
 
-function project(p: Vec3, cosT: number, sinT: number): [number, number] {
-  // Spin about the funnel axis (Y).
+// Project a local 3D point to screen + return the perspective scale, so callers
+// (the drop labels) can size themselves with the same foreshortening.
+function projectScaled(
+  p: Vec3,
+  cosT: number,
+  sinT: number,
+): [number, number, number] {
   const x1 = p.x * cosT + p.z * sinT;
   const z1 = -p.x * sinT + p.z * cosT;
-  // Tilt the view about X so we look down into the funnel.
   const y2 = p.y * COS_P - z1 * SIN_P;
   const z2 = p.y * SIN_P + z1 * COS_P;
-  // Perspective projection.
   const s = FOCAL / (z2 + CAM_DIST);
-  return [CX + x1 * s, CY + y2 * s];
+  return [CX + x1 * s, CY + y2 * s, s];
+}
+
+function project(p: Vec3, cosT: number, sinT: number): [number, number] {
+  const [x, y] = projectScaled(p, cosT, sinT);
+  return [x, y];
 }
 
 const fmt = (pts: [number, number][]) =>
@@ -90,26 +111,103 @@ function frame(theta: number) {
 
 const INITIAL = frame(0);
 
-export function Vortex() {
+const usd = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+
+export type VortexHandle = { drop: (amountCents: number) => void };
+
+type Drop = { id: number; label: string; baseAngle: number; start: number };
+
+export const Vortex = forwardRef<VortexHandle>(function Vortex(_props, ref) {
   const ringEls = useRef<(SVGPolygonElement | null)[]>([]);
   const spokeEls = useRef<(SVGPolylineElement | null)[]>([]);
+  const dropEls = useRef<Map<number, SVGTextElement | null>>(new Map());
+  const dropsRef = useRef<Drop[]>([]);
+  const reduceRef = useRef(false);
+  const idRef = useRef(0);
+  const [drops, setDrops] = useState<Drop[]>([]);
+
+  // Mirror state into a ref so the rAF loop sees the current list without
+  // re-subscribing.
+  useEffect(() => {
+    dropsRef.current = drops;
+  }, [drops]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      drop(amountCents: number) {
+        if (reduceRef.current) return; // respect reduced motion
+        const id = ++idRef.current;
+        setDrops((prev) => [
+          ...prev,
+          {
+            id,
+            label: usd.format(amountCents / 100),
+            baseAngle: Math.random() * Math.PI * 2,
+            start: performance.now(),
+          },
+        ]);
+      },
+    }),
+    [],
+  );
 
   useEffect(() => {
-    const reduce = window.matchMedia(
+    reduceRef.current = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
-    if (reduce) return;
+    if (reduceRef.current) return;
 
     let raf = 0;
     let start = 0;
     const tick = (now: number) => {
       if (!start) start = now;
       const theta = (((now - start) / 1000) * (Math.PI * 2)) / SPIN_PERIOD;
+      const cosT = Math.cos(theta);
+      const sinT = Math.sin(theta);
+
       const { rings, spokes } = frame(theta);
       for (let k = 0; k < RINGS; k++)
         ringEls.current[k]?.setAttribute("points", rings[k]);
       for (let j = 0; j < SIDES; j++)
         spokeEls.current[j]?.setAttribute("points", spokes[j]);
+
+      // Advance any in-flight amount labels along the funnel wall.
+      if (dropsRef.current.length) {
+        const done: number[] = [];
+        for (const d of dropsRef.current) {
+          const t = (now - d.start) / DROP_LIFETIME;
+          const el = dropEls.current.get(d.id);
+          if (t >= 1) {
+            done.push(d.id);
+            continue;
+          }
+          if (!el) continue;
+          const e = t * t; // ease-in: slow circling, then sucked into the throat
+          const r = R_MAX * (1 - e);
+          const f = r / R_MAX;
+          const y = DEPTH * (1 - f) ** WELL_EXP; // ride the gravity-well profile
+          const ang = d.baseAngle + DROP_TURNS * Math.PI * 2 * t;
+          const [sx, sy, s] = projectScaled(
+            { x: r * Math.cos(ang), y, z: r * Math.sin(ang) },
+            cosT,
+            sinT,
+          );
+          // Fade in at the start, fade out as it nears the throat.
+          const op =
+            t < 0.06 ? t / 0.06 : t > 0.82 ? Math.max(0, (1 - t) / 0.18) : 1;
+          el.setAttribute("x", sx.toFixed(1));
+          el.setAttribute("y", sy.toFixed(1));
+          el.setAttribute("font-size", (DROP_FONT * s).toFixed(1));
+          el.setAttribute("opacity", op.toFixed(2));
+        }
+        if (done.length)
+          setDrops((prev) => prev.filter((d) => !done.includes(d.id)));
+      }
+
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -152,7 +250,25 @@ export function Vortex() {
           stroke="none"
           style={{ fill: "var(--green-bright)" }}
         />
+
+        {/* Amounts spiralling down into the pit. */}
+        {drops.map((d) => (
+          <text
+            key={d.id}
+            ref={(el) => {
+              if (el) dropEls.current.set(d.id, el);
+              else dropEls.current.delete(d.id);
+            }}
+            className={styles.amount}
+            x={CX}
+            y={CY}
+            textAnchor="middle"
+            opacity={0}
+          >
+            {d.label}
+          </text>
+        ))}
       </svg>
     </div>
   );
-}
+});
