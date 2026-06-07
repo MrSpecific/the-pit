@@ -99,7 +99,9 @@ export function App() {
         rows.slice(0, 5).forEach((m) => {
           timers.push(
             setTimeout(() => {
-              if (active) vortex.current?.drop(m.amount_cents);
+              if (!active) return;
+              vortex.current?.drop(m.amount_cents);
+              audio.blip(); // no-op unless the visitor has enabled sound
             }, delay),
           );
           delay += 1800 + Math.random() * 2800;

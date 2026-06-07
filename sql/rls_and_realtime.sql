@@ -47,4 +47,19 @@ grant execute on function public.pit_total() to anon, authenticated;
 --    check and so the client gets name/message/amount on the paid update).
 
 alter table public.messages replica identity full;
-alter publication supabase_realtime add table public.messages;
+
+-- Add to the realtime publication only if it isn't already a member — Postgres
+-- has no "add table if not exists", and re-adding errors. Keeps this file
+-- safe to re-run.
+do $$
+begin
+  if not exists (
+    select 1
+    from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'messages'
+  ) then
+    alter publication supabase_realtime add table public.messages;
+  end if;
+end $$;
