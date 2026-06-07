@@ -81,9 +81,16 @@ export function App() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name, message, amountCents }),
       });
-      const data = (await res.json()) as { url?: string; error?: string };
+      // The server should return JSON, but on an unexpected failure it may not
+      // — so parse defensively and fall back to the HTTP status.
+      let data: { url?: string; error?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        /* non-JSON response */
+      }
       if (!res.ok || !data.url) {
-        setError(data.error ?? "Something went wrong.");
+        setError(data.error ?? `Request failed (${res.status}). Please try again.`);
         setSubmitting(false);
         return;
       }

@@ -6,6 +6,14 @@ import { webhook } from './routes/webhook';
 
 const app = new Hono<AppEnv>();
 
+// Any uncaught throw (e.g. a client constructed with a missing secret) returns
+// JSON rather than Hono's default plain-text 500 — so the browser can parse it
+// and show something useful. The real error is logged (see `wrangler tail`).
+app.onError((err, c) => {
+  console.error('Unhandled error:', err);
+  return c.json({ error: 'Something went wrong on the server.' }, 500);
+});
+
 // --- API surface -----------------------------------------------------------
 const api = new Hono<AppEnv>();
 
