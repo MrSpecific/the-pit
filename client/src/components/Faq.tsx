@@ -6,11 +6,11 @@ import styles from "./Faq.module.css";
 const FAQS: { q: string; a: string }[] = [
   {
     q: "What is The Pit?",
-    a: "Pay whatever you want into the pit. Leave your name and a message for posterity, if you like.",
+    a: "The pit accepts your tribute. Leave your name and a message for posterity, if you like.",
   },
   {
     q: "Where does my money go?",
-    a: "Into the void. There are no refunds — throw in what you're comfortable losing.",
+    a: "Into the void. There are no refunds — only throw in what you're comfortable losing.",
   },
   {
     q: "Is my payment secure?",
