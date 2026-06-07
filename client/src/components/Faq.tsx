@@ -6,7 +6,7 @@ import styles from "./Faq.module.css";
 const FAQS: { q: string; a: string }[] = [
   {
     q: "What is The Pit?",
-    a: "The pit accepts your tribute. Leave your name and a message for posterity, if you like.",
+    a: "The Pit accepts your tribute. Leave your name and a message for posterity, if you like.",
   },
   {
     q: "Where does my money go?",
@@ -19,6 +19,10 @@ const FAQS: { q: string; a: string }[] = [
   {
     q: "Do I have to leave a name or message?",
     a: "Nope — both are optional. Leave them blank to post anonymously.",
+  },
+  {
+    q: "What is the point of this?",
+    a: "The Pit is a little moment of shared experience, a reminder of the passage of time and the impermanence of all things. It's a place to reflect on the past, acknowledge the present, and contemplate the future.",
   },
 ];
 // ─────────────────────────────────────────────────────────────────────────────

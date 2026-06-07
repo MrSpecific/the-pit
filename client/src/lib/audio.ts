@@ -59,6 +59,16 @@ function crackle(ctx: AudioContext, dest: AudioNode) {
   src.stop(t + dur);
 }
 
+const STORAGE_KEY = "the-pit:sound";
+
+function readStoredPreference(): boolean {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "on";
+  } catch {
+    return false; // storage unavailable (private mode, etc.)
+  }
+}
+
 export interface AudioControls {
   enabled: boolean;
   toggle: () => void;
@@ -66,11 +76,11 @@ export interface AudioControls {
 }
 
 export function useAudio(): AudioControls {
-  const [enabled, setEnabled] = useState(false);
+  const [enabled, setEnabled] = useState(readStoredPreference);
   const ctxRef = useRef<AudioContext | null>(null);
   const masterRef = useRef<GainNode | null>(null);
   const tickTimer = useRef<number | null>(null);
-  const enabledRef = useRef(false);
+  const enabledRef = useRef(enabled);
 
   // Lazily build the graph on first enable — inside the user gesture, so the
   // browser's autoplay policy lets it run.
@@ -128,6 +138,11 @@ export function useAudio(): AudioControls {
     setEnabled((on) => {
       const next = !on;
       enabledRef.current = next;
+      try {
+        localStorage.setItem(STORAGE_KEY, next ? "on" : "off");
+      } catch {
+        /* storage unavailable */
+      }
       if (next) start();
       else stop();
       return next;
@@ -140,6 +155,21 @@ export function useAudio(): AudioControls {
     if (!enabledRef.current || !ctx || !master) return;
     crackle(ctx, master);
   }, []);
+
+  // If sound was left on from a previous visit, the autoplay policy still
+  // blocks starting it on load — so begin at the first user interaction.
+  useEffect(() => {
+    if (!enabledRef.current) return;
+    const resume = () => {
+      if (enabledRef.current) start();
+    };
+    window.addEventListener("pointerdown", resume, { once: true });
+    window.addEventListener("keydown", resume, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", resume);
+      window.removeEventListener("keydown", resume);
+    };
+  }, [start]);
 
   useEffect(() => {
     return () => {
