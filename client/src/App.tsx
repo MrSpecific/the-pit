@@ -96,7 +96,7 @@ export function App() {
         // Seed the pit with the most recent amounts, staggered with a large
         // semi-random gap so arrivals feel organic rather than synchronized.
         let delay = 600;
-        rows.slice(0, 5).forEach((m) => {
+        rows.slice(0, 8).forEach((m) => {
           timers.push(
             setTimeout(() => {
               if (!active) return;
@@ -104,7 +104,7 @@ export function App() {
               audio.blip(); // no-op unless the visitor has enabled sound
             }, delay),
           );
-          delay += 1800 + Math.random() * 2800;
+          delay += 1800 + Math.random() * 3800;
         });
       });
 
@@ -238,7 +238,9 @@ export function App() {
         .maybeSingle();
       if (!active) return;
       if (data) {
-        setConfirmed({ amount: (data as { amount_cents: number }).amount_cents });
+        setConfirmed({
+          amount: (data as { amount_cents: number }).amount_cents,
+        });
         return;
       }
       if (++tries < 20) timer = setTimeout(poll, 2000);
@@ -565,7 +567,11 @@ export function App() {
               ))}
             </ul>
             {hasMore && (
-              <div ref={sentinel} className={styles.sentinel} aria-hidden="true">
+              <div
+                ref={sentinel}
+                className={styles.sentinel}
+                aria-hidden="true"
+              >
                 loading…
               </div>
             )}

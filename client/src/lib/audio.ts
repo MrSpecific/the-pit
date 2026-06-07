@@ -31,20 +31,32 @@ function tick(ctx: AudioContext, dest: AudioNode) {
   src.stop(t + dur);
 }
 
-// A short rising square blip — plays when a message lands.
-function blipSound(ctx: AudioContext, dest: AudioNode) {
+// A brief, haunted burst of static — plays when a message lands. Filtered
+// noise with a downward band sweep and a quick, slightly ragged decay; kept
+// subtle so it reads as a crackle, not a beep.
+function crackle(ctx: AudioContext, dest: AudioNode) {
   const t = ctx.currentTime;
-  const osc = ctx.createOscillator();
-  osc.type = "square";
-  osc.frequency.setValueAtTime(660, t);
-  osc.frequency.exponentialRampToValueAtTime(1320, t + 0.05);
+  const dur = 0.22;
+  const src = ctx.createBufferSource();
+  src.buffer = makeNoise(ctx, dur);
+  // Thin the noise so it reads as crackle/static rather than full white noise.
+  const hp = ctx.createBiquadFilter();
+  hp.type = "highpass";
+  hp.frequency.value = 1100;
+  // Sweep the band downward for an eerie "settling into the void" feel.
+  const bp = ctx.createBiquadFilter();
+  bp.type = "bandpass";
+  bp.Q.value = 0.8;
+  bp.frequency.setValueAtTime(3200, t);
+  bp.frequency.exponentialRampToValueAtTime(700, t + dur);
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(0.22, t + 0.005);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
-  osc.connect(g).connect(dest);
-  osc.start(t);
-  osc.stop(t + 0.13);
+  g.gain.exponentialRampToValueAtTime(0.16, t + 0.01);
+  g.gain.exponentialRampToValueAtTime(0.05, t + 0.06); // ragged step
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(hp).connect(bp).connect(g).connect(dest);
+  src.start(t);
+  src.stop(t + dur);
 }
 
 export interface AudioControls {
@@ -126,7 +138,7 @@ export function useAudio(): AudioControls {
     const ctx = ctxRef.current;
     const master = masterRef.current;
     if (!enabledRef.current || !ctx || !master) return;
-    blipSound(ctx, master);
+    crackle(ctx, master);
   }, []);
 
   useEffect(() => {
