@@ -29,6 +29,40 @@ const MSG_MAX = 500;
 const SUGGESTED = [1, 5, 10, 20, 50, 100]; // dollar quick-picks
 const PAGE_SIZE = 20; // feed rows fetched per page
 
+// Animates a displayed number toward `target` (ease-out). Counts up from 0 on
+// load and from the current value on each live increment.
+function useCountUp(target: number, duration = 1400): number {
+  const [value, setValue] = useState(0);
+  const fromRef = useRef(0);
+  const rafRef = useRef(0);
+
+  useEffect(() => {
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (reduce) {
+      fromRef.current = target;
+      setValue(target);
+      return;
+    }
+    const from = fromRef.current;
+    if (from === target) return;
+    const start = performance.now();
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+      const v = Math.round(from + (target - from) * eased);
+      fromRef.current = v;
+      setValue(v);
+      if (t < 1) rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [target, duration]);
+
+  return value;
+}
+
 export function App() {
   const [messages, setMessages] = useState<PitMessage[]>([]);
   const [name, setName] = useState("");
@@ -50,6 +84,7 @@ export function App() {
         : null;
   });
   const [confirmed, setConfirmed] = useState<{ amount: number } | null>(null);
+  const animatedTotal = useCountUp(total);
   const audio = useAudio();
 
   const vortex = useRef<VortexHandle>(null);
@@ -533,7 +568,7 @@ export function App() {
       <section id="feed" className={styles.feedSection}>
         <p className={styles.feedTotal}>
           <span className={styles.feedTotalAmount}>
-            {usdWhole.format(total / 100)}
+            {usdWhole.format(animatedTotal / 100)}
           </span>{" "}
           fed to the pit so far…
         </p>
