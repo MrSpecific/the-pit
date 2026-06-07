@@ -24,7 +24,7 @@ function tick(ctx: AudioContext, dest: AudioNode) {
   bp.Q.value = 1.4;
   const g = ctx.createGain();
   g.gain.setValueAtTime(0.0001, t);
-  g.gain.exponentialRampToValueAtTime(0.5, t + 0.001);
+  g.gain.exponentialRampToValueAtTime(0.12, t + 0.001); // quiet vs. the bed
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   src.connect(bp).connect(g).connect(dest);
   src.start(t);
@@ -129,8 +129,8 @@ export function useAudio(): AudioControls {
     master.gain.setTargetAtTime(0.5, ctx.currentTime, 0.25); // fade in
     if (tickTimer.current == null) {
       tickTimer.current = window.setInterval(() => {
-        if (Math.random() < 0.3) tick(ctx, master); // ~1 tick/sec, irregular
-      }, 300);
+        if (Math.random() < 0.2) tick(ctx, master); // ~1 tick / 4–5s, irregular
+      }, 900);
     }
   }, []);
 
@@ -172,17 +172,19 @@ export function useAudio(): AudioControls {
 
   // If sound was left on from a previous visit, the autoplay policy still
   // blocks starting it on load — so begin at the first user interaction.
+  // NOTE: iOS only unlocks audio from `touchend`/`click`, NOT pointer/touch
+  // *start* — using those would create a suspended context that never plays
+  // until the next gesture, which is exactly the "works only after re-toggle"
+  // bug. So we listen on the events iOS actually honors.
   useEffect(() => {
     if (!enabledRef.current) return;
-    const resume = () => {
+    const events: (keyof WindowEventMap)[] = ["click", "touchend", "keydown"];
+    const unlock = () => {
+      events.forEach((e) => window.removeEventListener(e, unlock));
       if (enabledRef.current) start();
     };
-    window.addEventListener("pointerdown", resume, { once: true });
-    window.addEventListener("keydown", resume, { once: true });
-    return () => {
-      window.removeEventListener("pointerdown", resume);
-      window.removeEventListener("keydown", resume);
-    };
+    events.forEach((e) => window.addEventListener(e, unlock));
+    return () => events.forEach((e) => window.removeEventListener(e, unlock));
   }, [start]);
 
   useEffect(() => {
