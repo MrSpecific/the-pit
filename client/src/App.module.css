@@ -34,6 +34,7 @@
 }
 
 .title {
+  position: relative;
   margin: 0;
   font-size: clamp(2.75rem, 12vw, 5rem);
   font-weight: 700;
@@ -44,6 +45,100 @@
   text-shadow:
     0 0 18px rgba(43, 255, 136, 0.55),
     0 0 4px rgba(43, 255, 136, 0.9);
+  /* Occasional whole-word jitter (mostly at rest). */
+  animation: glitch-skew 7s infinite steps(1);
+}
+
+/* Two chromatic ghosts that slice + offset in brief bursts — haunted CRT. */
+.title::before,
+.title::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  pointer-events: none;
+  text-shadow: none;
+  opacity: 0;
+}
+
+.title::before {
+  color: #ff5b6b;
+  animation: glitch-r 7s infinite steps(1);
+}
+
+.title::after {
+  color: #5be9ff;
+  animation: glitch-c 7s infinite steps(1);
+}
+
+/* Red ghost: silent most of the cycle, then a quick two-frame burst. */
+@keyframes glitch-r {
+  0%,
+  86%,
+  96%,
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(0 0 100% 0);
+  }
+  87% {
+    opacity: 0.75;
+    transform: translate(-3px, 1px);
+    clip-path: inset(18% 0 52% 0);
+  }
+  90% {
+    opacity: 0.75;
+    transform: translate(3px, -1px);
+    clip-path: inset(58% 0 12% 0);
+  }
+  93% {
+    opacity: 0.6;
+    transform: translate(-2px, 0);
+    clip-path: inset(35% 0 40% 0);
+  }
+}
+
+/* Cyan ghost: offset timing/slices from the red one. */
+@keyframes glitch-c {
+  0%,
+  85%,
+  95%,
+  100% {
+    opacity: 0;
+    transform: translate(0, 0);
+    clip-path: inset(0 0 100% 0);
+  }
+  86% {
+    opacity: 0.7;
+    transform: translate(3px, -1px);
+    clip-path: inset(12% 0 58% 0);
+  }
+  89% {
+    opacity: 0.7;
+    transform: translate(-3px, 1px);
+    clip-path: inset(50% 0 22% 0);
+  }
+  92% {
+    opacity: 0.55;
+    transform: translate(2px, 1px);
+    clip-path: inset(70% 0 8% 0);
+  }
+}
+
+@keyframes glitch-skew {
+  0%,
+  86%,
+  94%,
+  100% {
+    transform: translate(0, 0) skewX(0);
+  }
+  88% {
+    transform: translate(2px, 0) skewX(-4deg);
+  }
+  91% {
+    transform: translate(-2px, 0) skewX(3deg);
+  }
 }
 
 .tagline {
@@ -469,8 +564,15 @@
 @media (prefers-reduced-motion: reduce) {
   .cursor,
   .scrollHint,
-  .entryNew {
+  .entryNew,
+  .title,
+  .title::before,
+  .title::after {
     animation: none;
+  }
+  .title::before,
+  .title::after {
+    display: none;
   }
 }
 

@@ -1,0 +1,125 @@
+/* Sticky info/eye toggle, bottom-right (mirrors the audio control). */
+.toggle {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 10000;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: inherit;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--green-dim);
+  background: rgba(4, 7, 4, 0.7);
+  backdrop-filter: blur(3px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.toggle:hover,
+.toggle[aria-pressed="true"] {
+  color: var(--green-bright);
+  border-color: var(--border-strong);
+  box-shadow: var(--glow-sm);
+}
+
+/* The FAQ popover, anchored above the toggle. */
+.panel {
+  position: fixed;
+  right: 1rem;
+  bottom: 3.6rem;
+  z-index: 10000;
+  width: min(360px, calc(100vw - 2rem));
+  max-height: min(60vh, 520px);
+  overflow-y: auto;
+  background: rgba(4, 7, 4, 0.86);
+  backdrop-filter: blur(5px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow:
+    var(--glow-md),
+    inset 0 0 26px rgba(43, 255, 136, 0.05);
+  padding: 1rem 1.1rem 1.2rem;
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.6rem;
+}
+
+.panelTitle {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.66rem;
+  color: var(--green-dim);
+}
+
+.close {
+  font: inherit;
+  font-size: 0.7rem;
+  color: var(--green-dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  transition: color 0.12s ease;
+}
+
+.close:hover {
+  color: var(--green-bright);
+  text-shadow: var(--glow-text);
+}
+
+.items {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.item {
+  border-bottom: 1px solid var(--border);
+}
+
+.question {
+  cursor: pointer;
+  list-style: none;
+  padding: 0.6rem 0;
+  color: var(--green-bright);
+  font-size: 0.82rem;
+  text-shadow: var(--glow-text);
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+/* Custom marker (hide native triangle, use a terminal-style toggle). */
+.question::-webkit-details-marker {
+  display: none;
+}
+
+.question::before {
+  content: "+";
+  color: var(--green-dim);
+  width: 0.9em;
+  flex: none;
+}
+
+.item[open] .question::before {
+  content: "–";
+}
+
+.answer {
+  margin: 0 0 0.7rem 1.4em;
+  color: var(--text);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}

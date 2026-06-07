@@ -7,6 +7,7 @@ import {
 } from "react";
 import { supabase } from "./lib/supabase";
 import { Vortex, type VortexHandle } from "./components/Vortex";
+import { Faq } from "./components/Faq";
 import { useAudio } from "./lib/audio";
 import { MESSAGE_COLUMNS, type PitMessage } from "./types";
 import styles from "./App.module.css";
@@ -256,7 +257,9 @@ export function App() {
           <header className={styles.header}>
             <p className={styles.kicker}>throw your money</p>
             <span className={styles.kicker}>into</span>
-            <h1 className={styles.title}>The Pit</h1>
+            <h1 className={styles.title} data-text="The Pit">
+              The Pit
+            </h1>
             <p className={styles.tagline}>
               how much money will <span className={styles.italic}>you</span>{" "}
               throw in the pit?
@@ -457,6 +460,8 @@ export function App() {
         </span>
         sound
       </button>
+
+      <Faq />
     </>
   );
 }
