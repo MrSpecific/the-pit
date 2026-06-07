@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "the-pit",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-06",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // The built Vite frontend gets served from here. Real asset files are served
+  // directly by Cloudflare (free, no Worker invocation); only non-asset paths
+  // hit the Worker, and "single-page-application" returns index.html for them.
+  "assets": {
+    "directory": "./dist/client",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
+
+  // Non-secret config. The anon key + URL are safe to expose; the URL lives here.
+  "vars": {
+    "SUPABASE_URL": "https://YOUR-PROJECT-REF.supabase.co"
+  }
+
+  // Secrets are NOT stored here. Set them with `wrangler secret put <NAME>`
+  // (and in .dev.vars for local dev):
+  //   SUPABASE_SERVICE_ROLE_KEY
+  //   STRIPE_SECRET_KEY
+  //   STRIPE_WEBHOOK_SECRET
+}

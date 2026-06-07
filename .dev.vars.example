@@ -1,0 +1,10 @@
+# Local secrets for `wrangler dev`. Copy to `.dev.vars` (gitignored) and fill in.
+# In production, set these with:  wrangler secret put <NAME>
+
+SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+STRIPE_SECRET_KEY="sk_test_..."
+STRIPE_WEBHOOK_SECRET="whsec_..."
+
+# SUPABASE_URL lives in wrangler.jsonc `vars` (it isn't secret), but you can
+# override it locally here if you like:
+# SUPABASE_URL="https://YOUR-PROJECT-REF.supabase.co"

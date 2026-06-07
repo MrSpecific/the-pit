@@ -1,0 +1,25 @@
+{
+  "name": "the-pit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "cf-typegen": "wrangler types",
+    "db:migrate": "prisma migrate dev --skip-generate",
+    "db:deploy": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "hono": "^4.6.0",
+    "stripe": "^16.0.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "prisma": "^6.0.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0"
+  }
+}

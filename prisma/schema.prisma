@@ -1,0 +1,94 @@
+// The Pit — database schema.
+//
+// Prisma is used here ONLY to define and migrate the schema. Runtime queries go
+// through the Supabase JS client (PostgREST), not Prisma Client, so we never
+// generate or ship @prisma/client (migrations run with --skip-generate).
+//
+// Tables/columns are mapped to snake_case so they're idiomatic Postgres and
+// clean to query from supabase-js.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // pooled (Supavisor, port 6543)
+  directUrl = env("DIRECT_URL")   // direct (port 5432) — used by `prisma migrate`
+}
+
+enum OrderStatus {
+  pending
+  paid
+  failed
+  refunded
+
+  @@map("order_status")
+}
+
+model Profile {
+  id               String   @id @db.Uuid // matches auth.users.id (FK added in sql/)
+  email            String?
+  stripeCustomerId String?  @map("stripe_customer_id")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  orders Order[]
+
+  @@map("profiles")
+}
+
+model Product {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  description   String?
+  priceCents    Int      @map("price_cents")
+  currency      String   @default("usd")
+  stripePriceId String?  @map("stripe_price_id")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  orderItems OrderItem[]
+
+  @@map("products")
+}
+
+model Order {
+  id                    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                String?     @map("user_id") @db.Uuid
+  status                OrderStatus @default(pending)
+  amountCents           Int         @map("amount_cents")
+  currency              String      @default("usd")
+  stripeSessionId       String?     @map("stripe_session_id")
+  stripePaymentIntentId String?     @map("stripe_payment_intent_id")
+  createdAt             DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime    @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  profile    Profile?    @relation(fields: [userId], references: [id])
+  orderItems OrderItem[]
+
+  @@index([userId])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  orderId        String @map("order_id") @db.Uuid
+  productId      String @map("product_id") @db.Uuid
+  quantity       Int    @default(1)
+  unitPriceCents Int    @map("unit_price_cents")
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
+}
+
+model WebhookEvent {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  stripeEventId String   @unique @map("stripe_event_id")
+  type          String
+  processedAt   DateTime @default(now()) @map("processed_at") @db.Timestamptz(6)
+
+  @@map("webhook_events")
+}
