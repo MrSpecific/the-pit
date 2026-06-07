@@ -91,6 +91,19 @@ export function useAudio(): AudioControls {
         (window as unknown as { webkitAudioContext: typeof AudioContext })
           .webkitAudioContext;
       const ctx = new Ctor();
+
+      // iOS routes Web Audio through a session the hardware mute switch
+      // silences. Opt into "playback" so ambient sound plays regardless
+      // (Safari 16.4+; harmless/no-op elsewhere).
+      try {
+        const session = (
+          navigator as unknown as { audioSession?: { type: string } }
+        ).audioSession;
+        if (session) session.type = "playback";
+      } catch {
+        /* not supported */
+      }
+
       const master = ctx.createGain();
       master.gain.value = 0;
       master.connect(ctx.destination);
@@ -135,18 +148,19 @@ export function useAudio(): AudioControls {
   }, []);
 
   const toggle = useCallback(() => {
-    setEnabled((on) => {
-      const next = !on;
-      enabledRef.current = next;
-      try {
-        localStorage.setItem(STORAGE_KEY, next ? "on" : "off");
-      } catch {
-        /* storage unavailable */
-      }
-      if (next) start();
-      else stop();
-      return next;
-    });
+    const next = !enabledRef.current;
+    enabledRef.current = next;
+    try {
+      localStorage.setItem(STORAGE_KEY, next ? "on" : "off");
+    } catch {
+      /* storage unavailable */
+    }
+    // Run start()/stop() synchronously in the click handler — NOT inside the
+    // setEnabled updater. iOS Safari only unlocks/resumes an AudioContext from
+    // within the user-gesture call stack, and React may defer the updater.
+    if (next) start();
+    else stop();
+    setEnabled(next);
   }, [start, stop]);
 
   const blip = useCallback(() => {
