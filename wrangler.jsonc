@@ -6,6 +6,12 @@
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
 
+  // Serve the Worker at the live custom domain. `custom_domain: true` makes
+  // Cloudflare create the DNS record + TLS cert automatically — this requires
+  // thepit.biz to be a zone on the same Cloudflare account (nameservers
+  // pointed at Cloudflare). Add "www.thepit.biz" as another entry if needed.
+  "routes": [{ "pattern": "thepit.biz", "custom_domain": true }],
+
   // The built Vite frontend gets served from here. Real asset files are served
   // directly by Cloudflare (free, no Worker invocation); only non-asset paths
   // hit the Worker, and "single-page-application" returns index.html for them.
@@ -19,8 +25,8 @@
   // (The frontend reads VITE_SUPABASE_PUBLISHABLE_KEY from .env at build time;
   // this is the Worker's copy, available for any RLS-scoped reads it may do.)
   "vars": {
-    "SUPABASE_URL": "https://YOUR-PROJECT-REF.supabase.co",
-    "SUPABASE_PUBLISHABLE_KEY": "your-publishable-key"
+    "SUPABASE_URL": "https://wuqfgadfbtifhxofklxp.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_9vXYzzrfLgSxKDzENPs1ww_drjhlUea"
   }
 
   // Secrets are NOT stored here. Set them with `wrangler secret put <NAME>`
