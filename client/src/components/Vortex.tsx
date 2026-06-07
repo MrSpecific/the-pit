@@ -13,17 +13,24 @@ const CX = 500; // projection center (viewBox units)
 const CY = 360;
 const SIDES = 18; // vertices per ring / number of spokes
 const RINGS = 30;
-const R_MAX = 360; // mouth radius, local units
+const R_MAX = 410; // mouth radius, local units
 const SHRINK = 0.88; // ring radius shrinks by this each step inward
 const DEPTH = 1500; // how far the throat sits down the axis
 const WELL_EXP = 2.2; // >1 curves the profile — flat brim, steep plunge (gravity well)
 const TWIST = -0.16; // negative → spokes angle backwards into the well
+const HEIGHT_VAR = 22; // per-vertex depth wobble — larger at the rim, ~0 at the throat
 const PITCH = (58 * Math.PI) / 180; // view tilt — look down into the pit
 const FOCAL = 900; // perspective focal length
 const CAM_DIST = 820; // camera distance to the mouth
 const SPIN_PERIOD = 70; // seconds per revolution
 
 type Vec3 = { x: number; y: number; z: number };
+
+// Deterministic per-vertex pseudo-random in [-1, 1), for the height wobble.
+const noise = (k: number, j: number) => {
+  const n = Math.sin(k * 12.9898 + j * 78.233) * 43758.5453;
+  return (n - Math.floor(n)) * 2 - 1;
+};
 
 // Funnel geometry in local space (before spin / view-tilt / projection).
 const LOCAL: Vec3[][] = [];
@@ -32,10 +39,11 @@ for (let k = 0; k < RINGS; k++) {
   const f = SHRINK ** k; // 1 at the rim → 0 toward the throat
   const r = R_MAX * f;
   const y = DEPTH * (1 - f) ** WELL_EXP; // gravity-well curve: flat brim → steep plunge
+  const amp = HEIGHT_VAR * f; // wobble fades from the rim inward
   const ring: Vec3[] = [];
   for (let j = 0; j < SIDES; j++) {
     const a = (j / SIDES) * Math.PI * 2 + k * TWIST;
-    ring.push({ x: r * Math.cos(a), y, z: r * Math.sin(a) });
+    ring.push({ x: r * Math.cos(a), y: y + amp * noise(k, j), z: r * Math.sin(a) });
   }
   LOCAL.push(ring);
   RING_OPACITY.push(0.2 + 0.6 * f); // bright rim, fading into the depths
