@@ -1,6 +1,13 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { supabase } from "./lib/supabase";
 import { Vortex, type VortexHandle } from "./components/Vortex";
+import { useAudio } from "./lib/audio";
 import { MESSAGE_COLUMNS, type PitMessage } from "./types";
 import styles from "./App.module.css";
 
@@ -12,6 +19,7 @@ const usd = new Intl.NumberFormat("en-US", {
 const NAME_MAX = 80;
 const MSG_MAX = 500;
 const SUGGESTED = [1, 5, 10, 20, 50, 100]; // dollar quick-picks
+const PAGE_SIZE = 20; // feed rows fetched per page
 
 export function App() {
   const [messages, setMessages] = useState<PitMessage[]>([]);
@@ -21,12 +29,25 @@ export function App() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  const audio = useAudio();
+
   const vortex = useRef<VortexHandle>(null);
+  const amountInput = useRef<HTMLInputElement>(null);
   // Ids we've already shown, so realtime fires the pit animation only for
   // genuinely new arrivals (not the initial load or in-place updates).
   const knownIds = useRef<Set<string>>(new Set());
+  // Mirror of `messages` for the paginator's cursor (avoids stale closures).
+  const messagesRef = useRef<PitMessage[]>([]);
+  const loadingMore = useRef(false);
+  const observer = useRef<IntersectionObserver | null>(null);
 
-  // Load the existing feed, then subscribe for new paid messages. A row is
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  // Load the first page, then subscribe for new paid messages. A row is
   // inserted hidden (paid = false) and only becomes visible — to this query and
   // to realtime — once the webhook flips it to paid, so we react to that.
   // Skipped until Supabase is configured (supabase is null otherwise).
@@ -41,7 +62,7 @@ export function App() {
       .select(MESSAGE_COLUMNS)
       .eq("paid", true)
       .order("paid_at", { ascending: false })
-      .limit(100)
+      .limit(PAGE_SIZE)
       .then(({ data, error }) => {
         if (!active) return;
         if (error) {
@@ -51,6 +72,7 @@ export function App() {
         const rows = (data ?? []) as PitMessage[];
         rows.forEach((m) => knownIds.current.add(m.id));
         setMessages(rows);
+        setHasMore(rows.length === PAGE_SIZE);
 
         // Seed the pit with the most recent amounts, staggered with a large
         // semi-random gap so arrivals feel organic rather than synchronized.
@@ -84,10 +106,13 @@ export function App() {
             row?.paid === true &&
             !row.refunded_at;
           if (visible) {
-            // First time we've seen this paid message → drop it into the pit.
+            // First time we've seen this paid message → drop it into the pit
+            // and flag it so the feed entry pops in.
             if (!knownIds.current.has(id)) {
               knownIds.current.add(id);
               vortex.current?.drop((row as PitMessage).amount_cents);
+              setNewIds((prev) => new Set(prev).add(id));
+              audio.blip();
             }
           } else {
             knownIds.current.delete(id);
@@ -108,6 +133,64 @@ export function App() {
       client.removeChannel(channel);
     };
   }, []);
+
+  // Infinite scroll: fetch the next page using the oldest loaded paid_at as a
+  // cursor (robust against realtime items prepended at the top).
+  const loadMore = useCallback(async () => {
+    if (!supabase || loadingMore.current) return;
+    const list = messagesRef.current;
+    const cursor = list.length ? list[list.length - 1].paid_at : null;
+    if (!cursor) return;
+    loadingMore.current = true;
+    const { data, error } = await supabase
+      .from("messages")
+      .select(MESSAGE_COLUMNS)
+      .eq("paid", true)
+      .lt("paid_at", cursor)
+      .order("paid_at", { ascending: false })
+      .limit(PAGE_SIZE);
+    loadingMore.current = false;
+    if (error || !data) return;
+    const rows = data as PitMessage[];
+    rows.forEach((m) => knownIds.current.add(m.id));
+    setMessages((prev) => {
+      const seen = new Set(prev.map((m) => m.id));
+      return [...prev, ...rows.filter((m) => !seen.has(m.id))];
+    });
+    if (rows.length < PAGE_SIZE) setHasMore(false);
+  }, []);
+
+  // Callback ref on the bottom sentinel: (re)wire the observer whenever it
+  // mounts/unmounts (it's only rendered while there's more to load).
+  const sentinel = useCallback(
+    (node: HTMLDivElement | null) => {
+      observer.current?.disconnect();
+      if (!node) return;
+      observer.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting) loadMore();
+        },
+        { rootMargin: "300px" },
+      );
+      observer.current.observe(node);
+    },
+    [loadMore],
+  );
+
+  // Focus the amount when the form opens — without scrolling the page (the
+  // default focus-into-view jump looks like a glitch in the centered hero).
+  useEffect(() => {
+    if (formOpen) amountInput.current?.focus({ preventScroll: true });
+  }, [formOpen]);
+
+  function dismissNew(id: string) {
+    setNewIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -222,6 +305,7 @@ export function App() {
                   </span>
                   <input
                     id="amount"
+                    ref={amountInput}
                     className={styles.amountInput}
                     type="number"
                     min="1"
@@ -230,7 +314,6 @@ export function App() {
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    autoFocus
                     required
                   />
                 </div>
@@ -327,26 +410,53 @@ export function App() {
         {messages.length === 0 ? (
           <p className={styles.empty}>Nothing in the pit yet.</p>
         ) : (
-          <ul className={styles.feed}>
-            {messages.map((m) => (
-              <li key={m.id} className={styles.entry}>
-                <div className={styles.entryHead}>
-                  <span className={styles.entryName}>
-                    {m.name || "anonymous"}
-                  </span>
-                  <span className={styles.entryAmount}>
-                    {usd.format(m.amount_cents / 100)}
-                  </span>
-                </div>
-                {m.message && <p className={styles.entryBody}>{m.message}</p>}
-                <time className={styles.entryTime}>
-                  {new Date(m.paid_at ?? m.created_at).toLocaleString()}
-                </time>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className={styles.feed}>
+              {messages.map((m) => (
+                <li
+                  key={m.id}
+                  className={`${styles.entry} ${
+                    newIds.has(m.id) ? styles.entryNew : ""
+                  }`}
+                  onAnimationEnd={() => dismissNew(m.id)}
+                >
+                  <div className={styles.entryHead}>
+                    <span className={styles.entryName}>
+                      {m.name || "anonymous"}
+                    </span>
+                    <span className={styles.entryAmount}>
+                      {usd.format(m.amount_cents / 100)}
+                    </span>
+                  </div>
+                  {m.message && <p className={styles.entryBody}>{m.message}</p>}
+                  <time className={styles.entryTime}>
+                    {new Date(m.paid_at ?? m.created_at).toLocaleString()}
+                  </time>
+                </li>
+              ))}
+            </ul>
+            {hasMore && (
+              <div ref={sentinel} className={styles.sentinel} aria-hidden="true">
+                loading…
+              </div>
+            )}
+          </>
         )}
       </section>
+
+      <button
+        type="button"
+        className={styles.audioToggle}
+        onClick={audio.toggle}
+        aria-pressed={audio.enabled}
+        aria-label={audio.enabled ? "Mute sound" : "Play sound"}
+        title={audio.enabled ? "Mute" : "Play sound"}
+      >
+        <span className={styles.audioIcon} aria-hidden="true">
+          {audio.enabled ? "❚❚" : "▶"}
+        </span>
+        sound
+      </button>
     </>
   );
 }

@@ -22,6 +22,7 @@
 
 .header {
   margin-bottom: 1.75rem;
+  filter: drop-shadow(0 0.25rem 0.75rem rgba(0, 0, 0, 0.28));
 }
 
 .kicker {
@@ -369,8 +370,14 @@
 
 .feedSection {
   max-width: var(--maxw);
-  margin: 0 auto;
-  padding: 3rem 1.25rem 5rem;
+  margin: 0 auto 4rem;
+  padding: 1.75rem;
+  /* Frosted panel — blurs the grid/vortex showing through, like the form. */
+  background: rgba(4, 7, 4, 0.6);
+  backdrop-filter: blur(4px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: inset 0 0 30px rgba(43, 255, 136, 0.04);
 }
 
 .feedHeading {
@@ -396,6 +403,31 @@
 .entry {
   padding: 0.95rem 0;
   border-bottom: 1px solid var(--border);
+}
+
+/* New (realtime) arrivals pop in. */
+.entryNew {
+  animation: entry-pop 0.5s ease-out;
+}
+
+@keyframes entry-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.sentinel {
+  padding: 1.25rem 0 0.25rem;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 0.66rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
 }
 
 .entryHead {
@@ -436,11 +468,50 @@
 
 @media (prefers-reduced-motion: reduce) {
   .cursor,
-  .scrollHint {
+  .scrollHint,
+  .entryNew {
     animation: none;
   }
 }
 
 .italic {
   font-style: italic;
+}
+
+/* Sticky play/pause for the ambient audio, bottom-left. */
+.audioToggle {
+  position: fixed;
+  bottom: 1rem;
+  left: 1rem;
+  z-index: 10000;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font: inherit;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--green-dim);
+  background: rgba(4, 7, 4, 0.7);
+  backdrop-filter: blur(3px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.45rem 0.7rem;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.audioToggle:hover,
+.audioToggle[aria-pressed="true"] {
+  color: var(--green-bright);
+  border-color: var(--border-strong);
+  box-shadow: var(--glow-sm);
+}
+
+.audioIcon {
+  font-size: 0.8rem;
+  line-height: 1;
 }
