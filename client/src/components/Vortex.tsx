@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import styles from './Vortex.module.css';
+import { useEffect, useRef } from "react";
+import styles from "./Vortex.module.css";
 
 // A vector-wireframe funnel, rendered as a real 3D perspective projection.
 //
@@ -13,12 +13,12 @@ const CX = 500; // projection center (viewBox units)
 const CY = 360;
 const SIDES = 18; // vertices per ring / number of spokes
 const RINGS = 30;
-const R_MAX = 410; // mouth radius, local units
+const R_MAX = 440; // mouth radius, local units
 const SHRINK = 0.88; // ring radius shrinks by this each step inward
 const DEPTH = 1500; // how far the throat sits down the axis
 const WELL_EXP = 2.2; // >1 curves the profile — flat brim, steep plunge (gravity well)
 const TWIST = -0.16; // negative → spokes angle backwards into the well
-const HEIGHT_VAR = 22; // per-vertex depth wobble — larger at the rim, ~0 at the throat
+const HEIGHT_VAR = 0; // per-vertex depth wobble — larger at the rim, ~0 at the throat
 const PITCH = (58 * Math.PI) / 180; // view tilt — look down into the pit
 const FOCAL = 900; // perspective focal length
 const CAM_DIST = 820; // camera distance to the mouth
@@ -43,7 +43,11 @@ for (let k = 0; k < RINGS; k++) {
   const ring: Vec3[] = [];
   for (let j = 0; j < SIDES; j++) {
     const a = (j / SIDES) * Math.PI * 2 + k * TWIST;
-    ring.push({ x: r * Math.cos(a), y: y + amp * noise(k, j), z: r * Math.sin(a) });
+    ring.push({
+      x: r * Math.cos(a),
+      y: y + amp * noise(k, j),
+      z: r * Math.sin(a),
+    });
   }
   LOCAL.push(ring);
   RING_OPACITY.push(0.2 + 0.6 * f); // bright rim, fading into the depths
@@ -66,7 +70,7 @@ function project(p: Vec3, cosT: number, sinT: number): [number, number] {
 }
 
 const fmt = (pts: [number, number][]) =>
-  pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
 
 function frame(theta: number) {
   const cosT = Math.cos(theta);
@@ -91,7 +95,9 @@ export function Vortex() {
   const spokeEls = useRef<(SVGPolylineElement | null)[]>([]);
 
   useEffect(() => {
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
     if (reduce) return;
 
     let raf = 0;
@@ -101,9 +107,9 @@ export function Vortex() {
       const theta = (((now - start) / 1000) * (Math.PI * 2)) / SPIN_PERIOD;
       const { rings, spokes } = frame(theta);
       for (let k = 0; k < RINGS; k++)
-        ringEls.current[k]?.setAttribute('points', rings[k]);
+        ringEls.current[k]?.setAttribute("points", rings[k]);
       for (let j = 0; j < SIDES; j++)
-        spokeEls.current[j]?.setAttribute('points', spokes[j]);
+        spokeEls.current[j]?.setAttribute("points", spokes[j]);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -144,7 +150,7 @@ export function Vortex() {
           cy={INITIAL.throat[1]}
           r={3.5}
           stroke="none"
-          style={{ fill: 'var(--green-bright)' }}
+          style={{ fill: "var(--green-bright)" }}
         />
       </svg>
     </div>
