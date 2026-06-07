@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import styles from "./Faq.module.css";
 
 // ─── Add / edit FAQs here ───────────────────────────────────────────────────
-// Each entry renders as one accordion row. Answers may contain plain text.
-const FAQS: { q: string; a: string }[] = [
+// Each entry renders as one accordion row. Answers may contain plain text or inline links.
+const FAQS: { q: string; a: ReactNode }[] = [
   {
     q: "What is The Pit?",
     a: "The Pit accepts your tribute. Leave your name and a message for posterity, if you like.",
@@ -26,7 +26,13 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "What if I have a problem?",
-    a: "If you have any issues with the site or your payment, please contact us at <a href='mailto:thepitdotbiz@gmail.com'>thepitdotbiz@gmail.com</a>.",
+    a: (
+      <>
+        If you have any issues with the site or your payment, please contact us
+        at{" "}
+        <a href="mailto:thepitdotbiz@gmail.com">thepitdotbiz@gmail.com</a>.
+      </>
+    ),
   },
 ];
 // ─────────────────────────────────────────────────────────────────────────────

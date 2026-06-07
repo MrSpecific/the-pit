@@ -123,3 +123,13 @@
   font-size: 0.78rem;
   line-height: 1.55;
 }
+
+.answer a {
+  color: var(--green-bright);
+  text-decoration-color: var(--green-dim);
+  text-underline-offset: 0.18em;
+}
+
+.answer a:hover {
+  text-shadow: var(--glow-text);
+}
