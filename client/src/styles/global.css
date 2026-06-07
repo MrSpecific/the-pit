@@ -1,0 +1,125 @@
+/* The Pit — global theme.
+ *
+ * Old-school CRT / vector-terminal aesthetic: near-black background, phosphor
+ * green, monospace, faint vector grid + scanlines + vignette. Per-component
+ * layout lives in *.module.css; this file is tokens + reset + base only. */
+
+:root {
+  /* Phosphor-green-on-near-black palette. */
+  --bg: #050805;
+  --bg-deep: #020302;
+  --surface: #0a0f0a;
+  --border: rgba(50, 255, 130, 0.22);
+  --border-strong: rgba(50, 255, 130, 0.55);
+
+  --green: #2bff88;
+  --green-bright: #8dffbe;
+  --green-dim: #4f8c66;
+  --text: #b6f5cd;
+  --text-dim: #6f9c80;
+  --danger: #ff6b53;
+
+  --glow-sm: 0 0 4px rgba(43, 255, 136, 0.55);
+  --glow-md: 0 0 12px rgba(43, 255, 136, 0.4);
+  --glow-text: 0 0 6px rgba(43, 255, 136, 0.6);
+
+  --font-mono: 'Martian Mono', ui-monospace, 'SF Mono', 'SFMono-Regular',
+    'Menlo', 'Consolas', 'DejaVu Sans Mono', monospace;
+
+  --radius: 2px;
+  --maxw: 720px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1.5;
+  /* Faint vector grid behind everything. */
+  background-image:
+    linear-gradient(rgba(43, 255, 136, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(43, 255, 136, 0.035) 1px, transparent 1px);
+  background-size: 34px 34px;
+}
+
+body {
+  min-height: 100vh;
+  position: relative;
+}
+
+/* Vignette — darken the edges like a curved tube. Above content, inert. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  background: radial-gradient(
+    125% 125% at 50% 50%,
+    transparent 52%,
+    rgba(0, 0, 0, 0.78) 100%
+  );
+}
+
+/* Scanlines + a very subtle flicker. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.13) 3px,
+    rgba(0, 0, 0, 0) 4px
+  );
+  animation: scanline-flicker 5s infinite steps(60);
+}
+
+@keyframes scanline-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.94;
+  }
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+a {
+  color: var(--green-bright);
+  text-shadow: var(--glow-text);
+  text-underline-offset: 0.2em;
+}
+
+::selection {
+  background: var(--green);
+  color: #000;
+  text-shadow: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body::after {
+    animation: none;
+  }
+}

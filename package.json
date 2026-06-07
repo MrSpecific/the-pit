@@ -11,6 +11,7 @@
     "deploy": "vite build && wrangler deploy",
     "typecheck": "tsc --noEmit && tsc --noEmit -p client/tsconfig.json",
     "cf-typegen": "wrangler types",
+    "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy"
   },

@@ -25,14 +25,14 @@ There are no accounts — anyone can post, anonymously, by paying.
                           ┌────────────────────────────┐
    browser  ─────────────▶  Supabase (Postgres)        │
    realtime + reads       │  - RLS-guarded reads        │
-   (anon key, direct)     │  - Realtime on `messages`   │
+   (publishable key)      │  - Realtime on `messages`   │
                           └────────────────────────────┘
 ```
 
 Two things worth holding onto:
 
 - **Realtime never touches the Worker.** The browser subscribes to Supabase
-  directly (anon key + RLS). The Worker only handles payments and trusted writes.
+  directly (publishable key + RLS). The Worker only handles payments and trusted writes.
 - **The webhook is the source of truth for payment state.** The client is never
   trusted to say a payment happened; a message is created hidden (`paid = false`)
   and only the verified Stripe webhook flips it to `paid`, which is also the
@@ -75,9 +75,11 @@ cp .dev.vars.example .dev.vars  # local Worker secrets
 
 Fill both in.
 
-### 4. Migrate the schema
+### 4. Create the schema
 
 ```bash
+npm run db:push                 # prisma db push — sync schema, no migration files
+# or, if you prefer tracked migrations:
 npm run db:migrate              # prisma migrate dev
 ```
 
@@ -150,7 +152,7 @@ the-pit/
 │   └── src/
 │       ├── main.tsx            React entry
 │       ├── App.tsx             Submit form + live feed
-│       ├── lib/supabase.ts     Browser client (anon key + RLS)
+│       ├── lib/supabase.ts     Browser client (publishable key + RLS)
 │       └── types.ts            Shared message shape
 └── dist/client/                Vite build output (served by the Worker)
 ```

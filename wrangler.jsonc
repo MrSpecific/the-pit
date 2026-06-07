@@ -15,9 +15,12 @@
     "not_found_handling": "single-page-application"
   },
 
-  // Non-secret config. The anon key + URL are safe to expose; the URL lives here.
+  // Non-secret config. The publishable key + URL are safe to expose.
+  // (The frontend reads VITE_SUPABASE_PUBLISHABLE_KEY from .env at build time;
+  // this is the Worker's copy, available for any RLS-scoped reads it may do.)
   "vars": {
-    "SUPABASE_URL": "https://YOUR-PROJECT-REF.supabase.co"
+    "SUPABASE_URL": "https://YOUR-PROJECT-REF.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "your-publishable-key"
   }
 
   // Secrets are NOT stored here. Set them with `wrangler secret put <NAME>`

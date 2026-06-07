@@ -1,0 +1,362 @@
+/* Single-screen hero: the vortex sits behind a floating terminal form; the
+ * live feed lives just below the fold. */
+
+.hero {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1.25rem;
+  overflow: hidden;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 440px;
+  text-align: center;
+}
+
+.header {
+  margin-bottom: 1.75rem;
+}
+
+.kicker {
+  margin: 0 0 0.6rem;
+  color: var(--green-dim);
+  letter-spacing: 0.32em;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(2.75rem, 12vw, 5rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--green-bright);
+  text-shadow:
+    0 0 18px rgba(43, 255, 136, 0.55),
+    0 0 4px rgba(43, 255, 136, 0.9);
+}
+
+.tagline {
+  margin: 0.7rem 0 0;
+  color: var(--text-dim);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+}
+
+.cursor {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 0.3em;
+  vertical-align: -0.12em;
+  background: var(--green);
+  box-shadow: var(--glow-sm);
+  animation: cursor-blink 1.1s steps(1) infinite;
+}
+
+@keyframes cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.banner {
+  margin: 0 0 1.25rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border-strong);
+  background: rgba(43, 255, 136, 0.06);
+  box-shadow: var(--glow-sm);
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+/* Collapsed state: a single CTA, so the landing view is just the pit. */
+.openButton {
+  font: inherit;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--green-bright);
+  background: rgba(4, 7, 4, 0.6);
+  backdrop-filter: blur(2px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.85rem 1.9rem;
+  cursor: pointer;
+  text-shadow: var(--glow-text);
+  box-shadow: var(--glow-sm);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.openButton:hover {
+  background: var(--green);
+  color: #000;
+  text-shadow: none;
+  box-shadow: var(--glow-md);
+}
+
+.formHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.formTitle {
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.66rem;
+  color: var(--green-dim);
+}
+
+.minimize {
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1;
+  color: var(--green-dim);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  transition: color 0.12s ease;
+}
+
+.minimize:hover {
+  color: var(--green-bright);
+  text-shadow: var(--glow-text);
+}
+
+.form {
+  display: grid;
+  gap: 1rem;
+  text-align: left;
+  padding: 1.4rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: rgba(4, 7, 4, 0.74);
+  backdrop-filter: blur(3px);
+  box-shadow:
+    var(--glow-md),
+    inset 0 0 26px rgba(43, 255, 136, 0.05);
+}
+
+.field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.label {
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.66rem;
+  color: var(--green-dim);
+}
+
+.input,
+.textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--green-bright);
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.55rem 0.7rem;
+  outline: none;
+  caret-color: var(--green);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 4.5rem;
+}
+
+.input:focus,
+.textarea:focus,
+.amount:focus-within {
+  border-color: var(--border-strong);
+  box-shadow:
+    var(--glow-sm),
+    inset 0 0 10px rgba(43, 255, 136, 0.08);
+}
+
+.amount {
+  display: flex;
+  align-items: center;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0 0.7rem;
+}
+
+.amountSign {
+  color: var(--green-dim);
+  margin-right: 0.4rem;
+}
+
+.amountInput {
+  flex: 1;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--green-bright);
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0.55rem 0;
+  caret-color: var(--green);
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.amountInput::-webkit-outer-spin-button,
+.amountInput::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.error {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  color: var(--danger);
+  border: 1px solid rgba(255, 107, 83, 0.5);
+  background: rgba(255, 107, 83, 0.08);
+  text-shadow: 0 0 6px rgba(255, 107, 83, 0.5);
+  font-size: 0.8rem;
+}
+
+.submit {
+  justify-self: start;
+  font: inherit;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--green-bright);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0.6rem 1.5rem;
+  cursor: pointer;
+  text-shadow: var(--glow-text);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--green);
+  color: #000;
+  text-shadow: none;
+  box-shadow: var(--glow-md);
+}
+
+.submit:disabled {
+  opacity: 0.45;
+  cursor: progress;
+}
+
+.scrollHint {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  color: var(--green-dim);
+  text-decoration: none;
+  letter-spacing: 0.2em;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  animation: hint-bob 2.2s ease-in-out infinite;
+}
+
+@keyframes hint-bob {
+  50% {
+    transform: translate(-50%, 0.35rem);
+  }
+}
+
+/* --- Feed ------------------------------------------------------------------ */
+
+.feedSection {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: 3rem 1.25rem 5rem;
+}
+
+.feedHeading {
+  margin: 0 0 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.85rem;
+  color: var(--green-dim);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.6rem;
+}
+
+.empty {
+  color: var(--text-dim);
+}
+
+.feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.entry {
+  padding: 0.95rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.entryHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.entryName {
+  color: var(--green-bright);
+  text-shadow: var(--glow-text);
+}
+
+.entryName::before {
+  content: '> ';
+  color: var(--green-dim);
+}
+
+.entryAmount {
+  color: var(--green);
+  white-space: nowrap;
+}
+
+.entryBody {
+  margin: 0.45rem 0 0;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.entryTime {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--text-dim);
+  font-size: 0.68rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cursor,
+  .scrollHint {
+    animation: none;
+  }
+}

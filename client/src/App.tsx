@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { supabase } from './lib/supabase';
+import { Vortex } from './components/Vortex';
 import { MESSAGE_COLUMNS, type PitMessage } from './types';
+import styles from './App.module.css';
 
 const usd = new Intl.NumberFormat('en-US', {
   style: 'currency',
@@ -14,14 +16,18 @@ export function App() {
   const [amount, setAmount] = useState(''); // dollars, as typed
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   // Load the existing feed, then subscribe for new paid messages. A row is
   // inserted hidden (paid = false) and only becomes visible — to this query and
   // to realtime — once the webhook flips it to paid, so we react to that.
+  // Skipped until Supabase is configured (supabase is null otherwise).
   useEffect(() => {
+    if (!supabase) return;
+    const client = supabase;
     let active = true;
 
-    supabase
+    client
       .from('messages')
       .select(MESSAGE_COLUMNS)
       .eq('paid', true)
@@ -36,7 +42,7 @@ export function App() {
         setMessages((data ?? []) as PitMessage[]);
       });
 
-    const channel = supabase
+    const channel = client
       .channel('public:messages')
       .on(
         'postgres_changes',
@@ -53,7 +59,7 @@ export function App() {
 
     return () => {
       active = false;
-      supabase.removeChannel(channel);
+      client.removeChannel(channel);
     };
   }, []);
 
@@ -93,82 +99,153 @@ export function App() {
   const path = window.location.pathname;
   const banner =
     path === '/checkout/success'
-      ? 'Payment received — your message appears below once Stripe confirms it.'
+      ? 'Payment received — your message drops in below once Stripe confirms it.'
       : path === '/checkout/cancel'
         ? 'Checkout canceled. You were not charged.'
         : null;
 
   return (
-    <main>
-      <h1>The Pit</h1>
-      <p>Pay what you want to drop a message into the pit.</p>
+    <>
+      <section className={styles.hero}>
+        <Vortex />
 
-      {banner && (
-        <p role="status">
-          {banner} <a href="/">Back</a>
-        </p>
-      )}
+        <div className={styles.heroContent}>
+          <header className={styles.header}>
+            <p className={styles.kicker}>pay what you want</p>
+            <h1 className={styles.title}>The Pit</h1>
+            <p className={styles.tagline}>
+              drop a message into the void
+              <span className={styles.cursor} aria-hidden="true" />
+            </p>
+          </header>
 
-      <form onSubmit={handleSubmit}>
-        <p>
-          <label htmlFor="name">Name</label>
-          <br />
-          <input
-            id="name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={80}
-            required
-          />
-        </p>
-        <p>
-          <label htmlFor="message">Message</label>
-          <br />
-          <textarea
-            id="message"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            maxLength={500}
-            required
-          />
-        </p>
-        <p>
-          <label htmlFor="amount">Amount (USD)</label>
-          <br />
-          <input
-            id="amount"
-            type="number"
-            min="1"
-            step="0.01"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            required
-          />
-        </p>
-        {error && <p role="alert">{error}</p>}
-        <button type="submit" disabled={submitting}>
-          {submitting ? 'Redirecting…' : 'Pay & post'}
-        </button>
-      </form>
+          {banner && (
+            <p className={styles.banner} role="status">
+              {banner} <a href="/">[back]</a>
+            </p>
+          )}
 
-      <h2>The feed</h2>
-      {messages.length === 0 ? (
-        <p>Nothing in the pit yet.</p>
-      ) : (
-        <ul>
-          {messages.map((m) => (
-            <li key={m.id}>
-              <strong>{m.name}</strong> — {usd.format(m.amount_cents / 100)}
-              <br />
-              {m.message}
-              <br />
-              <small>
-                {new Date(m.paid_at ?? m.created_at).toLocaleString()}
-              </small>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+          {!formOpen ? (
+            <button
+              type="button"
+              className={styles.openButton}
+              aria-expanded={false}
+              onClick={() => setFormOpen(true)}
+            >
+              [ drop a message ]
+            </button>
+          ) : (
+            <form className={styles.form} onSubmit={handleSubmit}>
+              <div className={styles.formHeader}>
+                <span className={styles.formTitle}>// new message</span>
+                <button
+                  type="button"
+                  className={styles.minimize}
+                  onClick={() => setFormOpen(false)}
+                  aria-label="Minimize"
+                  title="Minimize"
+                >
+                  [–]
+                </button>
+              </div>
+
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="name">
+                  Name
+                </label>
+              <input
+                id="name"
+                className={styles.input}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={80}
+                autoComplete="off"
+                required
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="message">
+                Message
+              </label>
+              <textarea
+                id="message"
+                className={styles.textarea}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                maxLength={500}
+                required
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="amount">
+                Amount
+              </label>
+              <div className={styles.amount}>
+                <span className={styles.amountSign} aria-hidden="true">
+                  $
+                </span>
+                <input
+                  id="amount"
+                  className={styles.amountInput}
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {error && (
+              <p className={styles.error} role="alert">
+                {error}
+              </p>
+            )}
+
+            <button
+              className={styles.submit}
+              type="submit"
+              disabled={submitting}
+            >
+              {submitting ? 'Redirecting…' : 'Pay & post'}
+            </button>
+            </form>
+          )}
+        </div>
+
+        <a className={styles.scrollHint} href="#feed">
+          ▼ the feed
+        </a>
+      </section>
+
+      <section id="feed" className={styles.feedSection}>
+        <h2 className={styles.feedHeading}>// the feed</h2>
+        {messages.length === 0 ? (
+          <p className={styles.empty}>Nothing in the pit yet.</p>
+        ) : (
+          <ul className={styles.feed}>
+            {messages.map((m) => (
+              <li key={m.id} className={styles.entry}>
+                <div className={styles.entryHead}>
+                  <span className={styles.entryName}>{m.name}</span>
+                  <span className={styles.entryAmount}>
+                    {usd.format(m.amount_cents / 100)}
+                  </span>
+                </div>
+                <p className={styles.entryBody}>{m.message}</p>
+                <time className={styles.entryTime}>
+                  {new Date(m.paid_at ?? m.created_at).toLocaleString()}
+                </time>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </>
   );
 }
