@@ -33,9 +33,9 @@ const SPIN_PERIOD = 70; // seconds per revolution
 // Amount-drop animation: a paid amount fades in near the rim, spirals inward
 // and down the funnel wall (shrinking with perspective) until it reaches the
 // throat and fades out — "sucked into the pit".
-const DROP_LIFETIME = 10200; // ms from rim to throat
-const DROP_TURNS = 2.8; // revolutions while falling
-const DROP_FONT = 10; // label size (viewBox units) at the rim
+const DROP_LIFETIME = 20000; // ms from rim to throat
+const DROP_TURNS = 0; // extra revolutions; 0 = ride the vortex's own spin exactly
+const DROP_FONT = 9; // label size (viewBox units) at the rim
 
 type Vec3 = { x: number; y: number; z: number };
 
@@ -196,9 +196,12 @@ export const Vortex = forwardRef<VortexHandle>(function Vortex(_props, ref) {
             cosT,
             sinT,
           );
-          // Fade in at the start, fade out as it nears the throat.
-          const op =
-            t < 0.06 ? t / 0.06 : t > 0.82 ? Math.max(0, (1 - t) / 0.18) : 1;
+          // Fade in at the start, fade out by DEPTH as it nears the bottom
+          // (e is the eased descent fraction, so this tracks position not time).
+          const op = Math.min(
+            t < 0.05 ? t / 0.05 : 1,
+            e > 0.55 ? Math.max(0, (1 - e) / 0.45) : 1,
+          );
           el.setAttribute("x", sx.toFixed(1));
           el.setAttribute("y", sy.toFixed(1));
           el.setAttribute("font-size", (DROP_FONT * s).toFixed(1));

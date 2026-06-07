@@ -9,6 +9,10 @@ const usd = new Intl.NumberFormat("en-US", {
   currency: "USD",
 });
 
+const NAME_MAX = 80;
+const MSG_MAX = 500;
+const SUGGESTED = [1, 5, 10, 20, 50, 100]; // dollar quick-picks
+
 export function App() {
   const [messages, setMessages] = useState<PitMessage[]>([]);
   const [name, setName] = useState("");
@@ -48,16 +52,16 @@ export function App() {
         rows.forEach((m) => knownIds.current.add(m.id));
         setMessages(rows);
 
-        // Seed the pit with the most recent amounts, staggered with a
+        // Seed the pit with the most recent amounts, staggered with a large
         // semi-random gap so arrivals feel organic rather than synchronized.
-        let delay = 500;
-        rows.slice(0, 3).forEach((m) => {
+        let delay = 600;
+        rows.slice(0, 5).forEach((m) => {
           timers.push(
             setTimeout(() => {
               if (active) vortex.current?.drop(m.amount_cents);
             }, delay),
           );
-          delay += 700 + Math.random() * 900;
+          delay += 1800 + Math.random() * 2800;
         });
       });
 
@@ -146,6 +150,11 @@ export function App() {
     }
   }
 
+  function randomizeAmount() {
+    // A playful random pledge between $1.00 and $100000.00.
+    setAmount((Math.random() * 99999 + 1).toFixed(2));
+  }
+
   // Minimal handling of the Stripe redirect targets (success_url / cancel_url).
   const path = window.location.pathname;
   const banner =
@@ -162,11 +171,12 @@ export function App() {
 
         <div className={styles.heroContent}>
           <header className={styles.header}>
-            <p className={styles.kicker}>pay what you want</p>
-            <span className={styles.kicker}>to</span>
+            <p className={styles.kicker}>throw your money</p>
+            <span className={styles.kicker}>into</span>
             <h1 className={styles.title}>The Pit</h1>
             <p className={styles.tagline}>
-              how much money do you want to throw in the pit?
+              how much money will <span className={styles.italic}>you</span>{" "}
+              throw in the pit?
               <span className={styles.cursor} aria-hidden="true" />
             </p>
           </header>
@@ -184,12 +194,12 @@ export function App() {
               aria-expanded={false}
               onClick={() => setFormOpen(true)}
             >
-              [ drop money ]
+              [ throw money ]
             </button>
           ) : (
             <form className={styles.form} onSubmit={handleSubmit}>
               <div className={styles.formHeader}>
-                <span className={styles.formTitle}>// new message</span>
+                <span className={styles.formTitle}>// burn money</span>
                 <button
                   type="button"
                   className={styles.minimize}
@@ -201,40 +211,12 @@ export function App() {
                 </button>
               </div>
 
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="name">
-                  Name
-                </label>
-                <input
-                  id="name"
-                  className={styles.input}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  maxLength={80}
-                  autoComplete="off"
-                  required
-                />
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="message">
-                  Message
-                </label>
-                <textarea
-                  id="message"
-                  className={styles.textarea}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  maxLength={500}
-                  required
-                />
-              </div>
-
-              <div className={styles.field}>
+              {/* Amount — the lead control. */}
+              <div className={styles.amountField}>
                 <label className={styles.label} htmlFor="amount">
-                  Amount
+                  How much?
                 </label>
-                <div className={styles.amount}>
+                <div className={styles.amountBig}>
                   <span className={styles.amountSign} aria-hidden="true">
                     $
                   </span>
@@ -248,9 +230,74 @@ export function App() {
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
+                    autoFocus
                     required
                   />
                 </div>
+                <div className={styles.amountControls}>
+                  {SUGGESTED.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={styles.chip}
+                      onClick={() => setAmount(String(s))}
+                    >
+                      ${s}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className={styles.chip}
+                    onClick={randomizeAmount}
+                  >
+                    ⚲ random
+                  </button>
+                </div>
+              </div>
+
+              <div className={styles.field}>
+                <div className={styles.labelRow}>
+                  <label className={styles.label} htmlFor="name">
+                    Name <span className={styles.counter}>(optional)</span>
+                  </label>
+                  <span
+                    className={`${styles.counter} ${
+                      name.length >= NAME_MAX ? styles.counterMax : ""
+                    }`}
+                  >
+                    {name.length}/{NAME_MAX}
+                  </span>
+                </div>
+                <input
+                  id="name"
+                  className={styles.input}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={NAME_MAX}
+                  autoComplete="off"
+                />
+              </div>
+
+              <div className={styles.field}>
+                <div className={styles.labelRow}>
+                  <label className={styles.label} htmlFor="message">
+                    Message <span className={styles.counter}>(optional)</span>
+                  </label>
+                  <span
+                    className={`${styles.counter} ${
+                      message.length >= MSG_MAX ? styles.counterMax : ""
+                    }`}
+                  >
+                    {message.length}/{MSG_MAX}
+                  </span>
+                </div>
+                <textarea
+                  id="message"
+                  className={styles.textarea}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  maxLength={MSG_MAX}
+                />
               </div>
 
               {error && (
@@ -264,7 +311,7 @@ export function App() {
                 type="submit"
                 disabled={submitting}
               >
-                {submitting ? "Redirecting…" : "Pay & post"}
+                {submitting ? "Redirecting…" : "THROW YOUR MONEY INTO THE VOID"}
               </button>
             </form>
           )}
@@ -276,7 +323,7 @@ export function App() {
       </section>
 
       <section id="feed" className={styles.feedSection}>
-        <h2 className={styles.feedHeading}>// the feed</h2>
+        <h2 className={styles.feedHeading}>// the pit feed</h2>
         {messages.length === 0 ? (
           <p className={styles.empty}>Nothing in the pit yet.</p>
         ) : (
@@ -284,12 +331,14 @@ export function App() {
             {messages.map((m) => (
               <li key={m.id} className={styles.entry}>
                 <div className={styles.entryHead}>
-                  <span className={styles.entryName}>{m.name}</span>
+                  <span className={styles.entryName}>
+                    {m.name || "anonymous"}
+                  </span>
                   <span className={styles.entryAmount}>
                     {usd.format(m.amount_cents / 100)}
                   </span>
                 </div>
-                <p className={styles.entryBody}>{m.message}</p>
+                {m.message && <p className={styles.entryBody}>{m.message}</p>}
                 <time className={styles.entryTime}>
                   {new Date(m.paid_at ?? m.created_at).toLocaleString()}
                 </time>

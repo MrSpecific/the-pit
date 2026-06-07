@@ -52,6 +52,11 @@
   letter-spacing: 0.04em;
 }
 
+.italic {
+  font-style: italic;
+  color: var(--green-bright);
+}
+
 .cursor {
   display: inline-block;
   width: 0.5em;
@@ -139,6 +144,9 @@
 
 .form {
   display: grid;
+  /* minmax(0, 1fr) lets the column shrink to the panel width instead of
+   * expanding to the inputs' content size (which blows them out). */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   text-align: left;
   padding: 1.4rem;
@@ -153,6 +161,7 @@
 
 .field {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.4rem;
 }
 
@@ -166,6 +175,8 @@
 .input,
 .textarea {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   font: inherit;
   font-size: 0.9rem;
   color: var(--green-bright);
@@ -184,45 +195,113 @@
 
 .input:focus,
 .textarea:focus,
-.amount:focus-within {
+.amountBig:focus-within {
   border-color: var(--border-strong);
   box-shadow:
     var(--glow-sm),
     inset 0 0 10px rgba(43, 255, 136, 0.08);
 }
 
-.amount {
+/* Amount — the lead control, large. */
+.amountField {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.amountBig {
   display: flex;
   align-items: center;
   background: var(--bg-deep);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  padding: 0 0.7rem;
+  padding: 0.5rem 0.9rem;
+  box-shadow: inset 0 0 14px rgba(43, 255, 136, 0.05);
 }
 
 .amountSign {
+  font-size: 2rem;
+  line-height: 1;
   color: var(--green-dim);
-  margin-right: 0.4rem;
+  margin-right: 0.35rem;
 }
 
 .amountInput {
   flex: 1;
+  min-width: 0;
   font: inherit;
-  font-size: 0.9rem;
+  font-size: 2.6rem;
+  font-weight: 700;
+  line-height: 1.1;
   color: var(--green-bright);
   background: transparent;
   border: none;
   outline: none;
-  padding: 0.55rem 0;
+  padding: 0;
   caret-color: var(--green);
+  text-shadow: var(--glow-text);
   appearance: textfield;
   -moz-appearance: textfield;
+}
+
+.amountInput::placeholder {
+  color: var(--green-dim);
+  text-shadow: none;
 }
 
 .amountInput::-webkit-outer-spin-button,
 .amountInput::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+/* Quick-pick + randomize controls beneath the amount. */
+.amountControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  font: inherit;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  color: var(--green-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.3rem 0.6rem;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.chip:hover {
+  color: var(--green-bright);
+  border-color: var(--border-strong);
+  box-shadow: var(--glow-sm);
+}
+
+/* Label row carrying a live character counter on the right. */
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.counter {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.counterMax {
+  color: var(--danger);
+  text-shadow: 0 0 6px rgba(255, 107, 83, 0.4);
 }
 
 .error {
@@ -360,4 +439,8 @@
   .scrollHint {
     animation: none;
   }
+}
+
+.italic {
+  font-style: italic;
 }

@@ -35,17 +35,17 @@ checkout.post('/', async (c) => {
     amountCents?: number;
   }>();
 
-  // 1. Validate. Trim and bound everything the client sent.
-  const name = body.name?.trim();
-  const message = body.message?.trim();
+  // 1. Validate. Name and message are optional; only the amount is required.
+  const name = (body.name ?? '').trim();
+  const message = (body.message ?? '').trim();
   const amountCents = body.amountCents;
 
-  if (!name || name.length > MAX_NAME_LEN) {
-    return c.json({ error: `Name is required (max ${MAX_NAME_LEN} chars).` }, 400);
+  if (name.length > MAX_NAME_LEN) {
+    return c.json({ error: `Name is too long (max ${MAX_NAME_LEN} chars).` }, 400);
   }
-  if (!message || message.length > MAX_MESSAGE_LEN) {
+  if (message.length > MAX_MESSAGE_LEN) {
     return c.json(
-      { error: `Message is required (max ${MAX_MESSAGE_LEN} chars).` },
+      { error: `Message is too long (max ${MAX_MESSAGE_LEN} chars).` },
       400,
     );
   }
