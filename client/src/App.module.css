@@ -21,6 +21,7 @@
 }
 
 .header {
+  pointer-events: none;
   margin-bottom: 1.75rem;
   filter: drop-shadow(0 0.25rem 0.75rem rgba(0, 0, 0, 0.28));
 }
@@ -205,7 +206,19 @@
   background: var(--green);
   color: #000;
   text-shadow: none;
-  box-shadow: var(--glow-md);
+  box-shadow: var(--glow-md); /* static fallback (reduced-motion) */
+  animation: button-glow-pulse 1.7s ease-in-out infinite;
+}
+
+/* A soft glow that breathes behind the button while hovered. */
+@keyframes button-glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(43, 255, 136, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 26px 4px rgba(43, 255, 136, 0.8);
+  }
 }
 
 /* Post-checkout confirmation panel (success / cancel). */
@@ -637,7 +650,8 @@
   .entryNew,
   .title,
   .title::before,
-  .title::after {
+  .title::after,
+  .openButton:hover {
     animation: none;
   }
   .title::before,
