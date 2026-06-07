@@ -1,10 +1,15 @@
 # The Pit
 
-A small payment-accepting app on Cloudflare Workers, with Supabase for data +
-realtime and Stripe for payments. TypeScript throughout.
+Pay whatever you want to drop a name and a message into the pit. Once the
+payment clears, your message goes public and shows up live in everyone's feed.
 
-This is the **backend scaffold**. The Vite frontend gets added later and builds
-into `dist/client`, served by the same Worker.
+Built on Cloudflare Workers, with Supabase for data + realtime and Stripe for
+payments. TypeScript throughout.
+
+This is the **backend**. The Vite frontend gets added later and builds into
+`dist/client`, served by the same Worker.
+
+There are no accounts — anyone can post, anonymously, by paying.
 
 ## Architecture
 
@@ -20,7 +25,7 @@ into `dist/client`, served by the same Worker.
                           ┌────────────────────────────┐
    browser  ─────────────▶  Supabase (Postgres)        │
    realtime + reads       │  - RLS-guarded reads        │
-   (anon key, direct)     │  - Realtime on `orders`     │
+   (anon key, direct)     │  - Realtime on `messages`   │
                           └────────────────────────────┘
 ```
 
@@ -29,8 +34,9 @@ Two things worth holding onto:
 - **Realtime never touches the Worker.** The browser subscribes to Supabase
   directly (anon key + RLS). The Worker only handles payments and trusted writes.
 - **The webhook is the source of truth for payment state.** The client is never
-  trusted to say an order was paid; only the verified Stripe webhook flips an
-  order to `paid`.
+  trusted to say a payment happened; a message is created hidden (`paid = false`)
+  and only the verified Stripe webhook flips it to `paid`, which is also the
+  moment RLS lets it become public.
 
 ## Stack
 
@@ -43,6 +49,7 @@ Two things worth holding onto:
 | Schema         | Prisma (migrations only — no runtime client)         |
 | Realtime       | Supabase Realtime (client subscribes directly)       |
 | Payments       | Stripe (hosted Checkout + webhooks)                  |
+| Frontend       | React + Vite (TS), built into `dist/client`          |
 
 ## Setup
 
@@ -62,7 +69,7 @@ Grab from the dashboard:
 ### 3. Configure env files
 
 ```bash
-cp .env.example .env            # Prisma connection strings
+cp .env.example .env            # Prisma DIRECT_URL + frontend VITE_* vars
 cp .dev.vars.example .dev.vars  # local Worker secrets
 ```
 
@@ -71,7 +78,7 @@ Fill both in.
 ### 4. Migrate the schema
 
 ```bash
-npm run db:migrate              # prisma migrate dev --skip-generate
+npm run db:migrate              # prisma migrate dev
 ```
 
 Then apply RLS, triggers, and realtime (Supabase SQL Editor, or psql):
@@ -104,45 +111,83 @@ The CLI prints a `whsec_...` signing secret — use that as your local
 
 ### 7. Run it
 
+For full-stack local dev, run both (separate terminals):
+
 ```bash
-npm run dev                     # wrangler dev on http://localhost:8787
+npm run dev                     # Worker (API + built assets) on :8787
+npm run dev:client              # Vite dev server (HMR) on :5173, proxies /api → :8787
 ```
 
-Sanity check: `GET /api/health` → `{ "ok": true }`.
+Develop the UI against `http://localhost:5173`; `/api/*` calls are proxied to
+the Worker. Sanity check the Worker directly: `GET localhost:8787/api/health`
+→ `{ "ok": true }`.
+
+For a production-like check, `npm run build` then `npm run dev` serves the
+built SPA from the Worker itself. `npm run deploy` builds the client and ships
+the Worker in one step.
 
 ## Project layout
 
 ```
 the-pit/
 ├── wrangler.jsonc              Worker config, bindings, static assets
+├── vite.config.ts              Vite config (client → dist/client, /api proxy)
+├── prisma.config.ts            Prisma CLI config (schema path, migrations, DB url)
 ├── prisma/schema.prisma        Schema (source of truth for migrations)
-├── sql/rls_and_realtime.sql    RLS policies, auth trigger, realtime publication
-├── src/
+├── sql/rls_and_realtime.sql    RLS policies + realtime publication
+├── src/                        Worker (Hono API)
 │   ├── index.ts                Hono app: API routes + SPA asset fallback
 │   ├── types.ts                Env bindings + Hono env type
 │   ├── lib/
 │   │   ├── supabase.ts         Service-role client (server-only, bypasses RLS)
 │   │   └── stripe.ts           Stripe client + WebCrypto webhook provider
 │   └── routes/
-│       ├── checkout.ts         POST /api/checkout
-│       └── webhook.ts          POST /api/webhooks/stripe
-└── dist/client/                Vite build output (placeholder for now)
+│       ├── checkout.ts         POST /api/checkout — create message + pay
+│       └── webhook.ts          POST /api/webhooks/stripe — publish on paid
+├── client/                     Frontend (React + Vite, unstyled scaffold)
+│   ├── index.html
+│   ├── tsconfig.json
+│   └── src/
+│       ├── main.tsx            React entry
+│       ├── App.tsx             Submit form + live feed
+│       ├── lib/supabase.ts     Browser client (anon key + RLS)
+│       └── types.ts            Shared message shape
+└── dist/client/                Vite build output (served by the Worker)
 ```
 
 ## Notes
 
-- **Prisma is schema-only.** `@prisma/client` is intentionally not installed;
-  all runtime DB access is via `supabase-js`. Migrations run with
-  `--skip-generate`.
+- **Prisma is schema-only (v7).** `@prisma/client` is intentionally not
+  installed and the schema has no `generator` block; all runtime DB access is
+  via `supabase-js`. CLI config lives in `prisma.config.ts`, which loads `.env`
+  via `dotenv` (Prisma 7 no longer auto-loads it) and points migrations at
+  `DIRECT_URL`.
 - **Stripe on Workers:** signatures are verified with `constructEventAsync` and
   a SubtleCrypto provider because the runtime has no Node `crypto`; the webhook
   reads the raw request body.
-- **Realtime:** `orders` is published for realtime. Add your second table in
-  `sql/rls_and_realtime.sql` (marked with a TODO).
-- The product/order schema is a sensible starting point — reshape the models in
-  `prisma/schema.prisma` to fit what The Pit actually sells.
+- **Realtime:** `messages` is published for realtime, but RLS still gates it —
+  subscribers only ever receive a row once it flips to `paid = true`, i.e. the
+  instant the webhook confirms payment.
+- **Pay-what-you-want bounds:** the amount is validated server-side in
+  `src/routes/checkout.ts` ($1.00–$10,000 by default); Stripe rejects charges
+  under ~$0.50.
+
+## Data model
+
+A single public-facing table, `messages`:
+
+| column              | notes                                              |
+| ------------------- | -------------------------------------------------- |
+| `name`, `message`   | what the poster submitted (≤ 80 / ≤ 500 chars)     |
+| `amount_cents`      | what they actually paid (from Stripe `amount_total`) |
+| `paid`, `paid_at`   | `paid` flips true on the webhook; RLS keys off it  |
+| `created_at`        | when checkout started                              |
+| `stripe_session_id` | for reconciliation                                 |
+
+`webhook_events` is an idempotency ledger so redelivered Stripe events are no-ops.
 
 ## Next
 
-Frontend: a Vite SPA that subscribes to Supabase Realtime for live order status
-and calls `/api/checkout` to start payment.
+Frontend: a Vite SPA with a "drop a message" form (name + message + amount →
+`/api/checkout`) and a live feed that subscribes to Supabase Realtime on
+`messages`.

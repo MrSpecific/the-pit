@@ -5,110 +5,102 @@ import { getSupabaseAdmin } from '../lib/supabase';
 
 export const checkout = new Hono<AppEnv>();
 
+// Pay-what-you-want bounds. Stripe rejects charges under ~$0.50; we set a $1.00
+// floor and a sane ceiling to keep obvious abuse out. Adjust to taste.
+const MIN_AMOUNT_CENTS = 100; // $1.00
+const MAX_AMOUNT_CENTS = 1_000_000; // $10,000.00
+const MAX_NAME_LEN = 80;
+const MAX_MESSAGE_LEN = 500;
+const CURRENCY = 'usd';
+
 /**
  * POST /api/checkout
  *
- * Body: { items: { productId: string; quantity: number }[]; userId?: string }
+ * Body: { name: string; message: string; amountCents: number }
  *
  * Flow:
- *   1. Look up the requested products server-side (trusted prices).
- *   2. Create a `pending` order in Supabase.
- *   3. Create a Stripe Checkout Session, stashing the order id in metadata.
+ *   1. Validate the name, message, and chosen amount.
+ *   2. Insert the message as `paid = false` (hidden by RLS until paid).
+ *   3. Create a Stripe Checkout Session for that amount, stashing the message
+ *      id in metadata.
  *   4. Return the hosted Checkout URL for the client to redirect to.
  *
- * The order is only marked `paid` later, by the verified webhook — never here,
- * and never on the client's say-so.
+ * The message only becomes public later, when the verified webhook flips it to
+ * paid — never here, and never on the client's say-so.
  */
 checkout.post('/', async (c) => {
+  const body = await c.req.json<{
+    name?: string;
+    message?: string;
+    amountCents?: number;
+  }>();
+
+  // 1. Validate. Trim and bound everything the client sent.
+  const name = body.name?.trim();
+  const message = body.message?.trim();
+  const amountCents = body.amountCents;
+
+  if (!name || name.length > MAX_NAME_LEN) {
+    return c.json({ error: `Name is required (max ${MAX_NAME_LEN} chars).` }, 400);
+  }
+  if (!message || message.length > MAX_MESSAGE_LEN) {
+    return c.json(
+      { error: `Message is required (max ${MAX_MESSAGE_LEN} chars).` },
+      400,
+    );
+  }
+  if (
+    typeof amountCents !== 'number' ||
+    !Number.isInteger(amountCents) ||
+    amountCents < MIN_AMOUNT_CENTS ||
+    amountCents > MAX_AMOUNT_CENTS
+  ) {
+    return c.json(
+      {
+        error: `Amount must be a whole number of cents between ${MIN_AMOUNT_CENTS} and ${MAX_AMOUNT_CENTS}.`,
+      },
+      400,
+    );
+  }
+
   const stripe = getStripe(c.env);
   const supabase = getSupabaseAdmin(c.env);
 
-  const body = await c.req.json<{
-    items: { productId: string; quantity: number }[];
-    userId?: string;
-  }>();
-
-  if (!body.items?.length) {
-    return c.json({ error: 'No items provided' }, 400);
-  }
-
-  // 1. Trusted product data — price always comes from the DB, never the client.
-  const productIds = body.items.map((i) => i.productId);
-  const { data: products, error: productsError } = await supabase
-    .from('products')
-    .select('id, name, price_cents, currency, stripe_price_id, active')
-    .in('id', productIds)
-    .eq('active', true);
-
-  if (productsError || !products?.length) {
-    return c.json({ error: 'Products not found' }, 400);
-  }
-
-  const productById = new Map(products.map((p) => [p.id, p]));
-
-  // 2. Compute total and create a pending order.
-  let amountCents = 0;
-  const orderItems = body.items.map((item) => {
-    const product = productById.get(item.productId);
-    if (!product) throw new Error(`Unknown product ${item.productId}`);
-    amountCents += product.price_cents * item.quantity;
-    return {
-      product_id: product.id,
-      quantity: item.quantity,
-      unit_price_cents: product.price_cents,
-    };
-  });
-
-  const currency = products[0].currency ?? 'usd';
-
-  const { data: order, error: orderError } = await supabase
-    .from('orders')
-    .insert({
-      user_id: body.userId ?? null,
-      status: 'pending',
-      amount_cents: amountCents,
-      currency,
-    })
+  // 2. Create the pending (unpaid) message.
+  const { data: pending, error: insertError } = await supabase
+    .from('messages')
+    .insert({ name, message, amount_cents: amountCents, currency: CURRENCY })
     .select('id')
     .single();
 
-  if (orderError || !order) {
-    return c.json({ error: 'Could not create order' }, 500);
+  if (insertError || !pending) {
+    return c.json({ error: 'Could not create message' }, 500);
   }
 
-  await supabase
-    .from('order_items')
-    .insert(orderItems.map((oi) => ({ ...oi, order_id: order.id })));
-
-  // 3. Create the Stripe Checkout Session.
+  // 3. Create the Stripe Checkout Session for the chosen amount.
   const origin = new URL(c.req.url).origin;
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
-    line_items: body.items.map((item) => {
-      const product = productById.get(item.productId)!;
-      // Use a pre-created Stripe Price if you have one; otherwise build
-      // price_data inline from the trusted DB value.
-      return product.stripe_price_id
-        ? { price: product.stripe_price_id, quantity: item.quantity }
-        : {
-            quantity: item.quantity,
-            price_data: {
-              currency,
-              unit_amount: product.price_cents,
-              product_data: { name: product.name },
-            },
-          };
-    }),
+    line_items: [
+      {
+        quantity: 1,
+        price_data: {
+          currency: CURRENCY,
+          unit_amount: amountCents,
+          product_data: { name: 'A message in The Pit' },
+        },
+      },
+    ],
     success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/checkout/cancel`,
-    metadata: { order_id: order.id },
+    metadata: { message_id: pending.id },
   });
 
   // 4. Save the session id for reconciliation, then hand back the URL.
   await supabase
-    .from('orders')
+    .from('messages')
     .update({ stripe_session_id: session.id })
-    .eq('id', order.id);
+    .eq('id', pending.id);
 
-  return c.json({ url: session.url, orderId: order.id });
+  return c.json({ url: session.url, messageId: pending.id });
 });

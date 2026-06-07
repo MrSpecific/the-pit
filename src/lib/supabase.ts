@@ -6,7 +6,7 @@ import type { Env } from '../types';
  *
  * This bypasses Row Level Security, so it must ONLY ever run inside the Worker
  * and must never be shipped to the browser. Use it for trusted writes — e.g.
- * marking an order paid after a verified Stripe webhook.
+ * marking a message paid after a verified Stripe webhook.
  *
  * The browser talks to Supabase directly with the *anon* key + RLS for reads
  * and realtime subscriptions; that path does not go through this client.

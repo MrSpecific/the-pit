@@ -10,7 +10,7 @@ export const webhook = new Hono<AppEnv>();
  * POST /api/webhooks/stripe
  *
  * The source of truth for payment state. Stripe calls this; we verify the
- * signature, then update the order.
+ * signature, then publish (or discard) the message.
  *
  * Two Workers-specific requirements:
  *   - Read the RAW body (`c.req.text()`); never let JSON parsing run first.
@@ -56,27 +56,33 @@ webhook.post('/', async (c) => {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object as Stripe.Checkout.Session;
-      const orderId = session.metadata?.order_id;
-      if (orderId) {
+      const messageId = session.metadata?.message_id;
+      if (messageId) {
+        // Publish the message. amount_total is the authoritative amount Stripe
+        // actually charged, so record that rather than the requested amount.
         await supabase
-          .from('orders')
+          .from('messages')
           .update({
-            status: 'paid',
-            stripe_payment_intent_id:
-              typeof session.payment_intent === 'string'
-                ? session.payment_intent
-                : null,
+            paid: true,
+            paid_at: new Date().toISOString(),
+            amount_cents: session.amount_total ?? undefined,
           })
-          .eq('id', orderId);
+          .eq('id', messageId);
       }
       break;
     }
 
     case 'checkout.session.expired': {
       const session = event.data.object as Stripe.Checkout.Session;
-      const orderId = session.metadata?.order_id;
-      if (orderId) {
-        await supabase.from('orders').update({ status: 'failed' }).eq('id', orderId);
+      const messageId = session.metadata?.message_id;
+      if (messageId) {
+        // The customer never paid; drop the pending row so it can't linger.
+        // (Guard on paid = false so a late expiry can't delete a paid message.)
+        await supabase
+          .from('messages')
+          .delete()
+          .eq('id', messageId)
+          .eq('paid', false);
       }
       break;
     }

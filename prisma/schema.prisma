@@ -1,89 +1,43 @@
 // The Pit — database schema.
 //
+// The premise: anyone can pay whatever they want to drop a name + message into
+// the pit. Once payment clears, the message becomes public and shows up live
+// (Supabase Realtime) in everyone's feed.
+//
 // Prisma is used here ONLY to define and migrate the schema. Runtime queries go
 // through the Supabase JS client (PostgREST), not Prisma Client, so we never
-// generate or ship @prisma/client (migrations run with --skip-generate).
+// generate or ship @prisma/client — hence there's no `generator` block.
 //
 // Tables/columns are mapped to snake_case so they're idiomatic Postgres and
 // clean to query from supabase-js.
-
-generator client {
-  provider = "prisma-client-js"
-}
+//
+// The connection URL lives in prisma.config.ts (Prisma 7+), not here.
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL") // pooled (Supavisor, port 6543)
-  directUrl = env("DIRECT_URL")   // direct (port 5432) — used by `prisma migrate`
+  provider = "postgresql"
 }
 
-enum OrderStatus {
-  pending
-  paid
-  failed
-  refunded
+/// One entry in the pit. Created (unpaid) when checkout starts, then flipped to
+/// paid by the verified Stripe webhook. Only paid rows are publicly visible
+/// (see sql/rls_and_realtime.sql).
+model Message {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name            String    @db.VarChar(80)
+  message         String    @db.VarChar(500)
+  amountCents     Int       @map("amount_cents")
+  currency        String    @default("usd")
+  paid            Boolean   @default(false)
+  stripeSessionId String?   @map("stripe_session_id")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  paidAt          DateTime? @map("paid_at") @db.Timestamptz(6)
 
-  @@map("order_status")
+  // The public feed reads paid rows newest-first.
+  @@index([paid, createdAt])
+  @@map("messages")
 }
 
-model Profile {
-  id               String   @id @db.Uuid // matches auth.users.id (FK added in sql/)
-  email            String?
-  stripeCustomerId String?  @map("stripe_customer_id")
-  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  orders Order[]
-
-  @@map("profiles")
-}
-
-model Product {
-  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name          String
-  description   String?
-  priceCents    Int      @map("price_cents")
-  currency      String   @default("usd")
-  stripePriceId String?  @map("stripe_price_id")
-  active        Boolean  @default(true)
-  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  orderItems OrderItem[]
-
-  @@map("products")
-}
-
-model Order {
-  id                    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                String?     @map("user_id") @db.Uuid
-  status                OrderStatus @default(pending)
-  amountCents           Int         @map("amount_cents")
-  currency              String      @default("usd")
-  stripeSessionId       String?     @map("stripe_session_id")
-  stripePaymentIntentId String?     @map("stripe_payment_intent_id")
-  createdAt             DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt             DateTime    @default(now()) @map("updated_at") @db.Timestamptz(6)
-
-  profile    Profile?    @relation(fields: [userId], references: [id])
-  orderItems OrderItem[]
-
-  @@index([userId])
-  @@map("orders")
-}
-
-model OrderItem {
-  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  orderId        String @map("order_id") @db.Uuid
-  productId      String @map("product_id") @db.Uuid
-  quantity       Int    @default(1)
-  unitPriceCents Int    @map("unit_price_cents")
-
-  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
-
-  @@index([orderId])
-  @@map("order_items")
-}
-
+/// Stripe webhook idempotency ledger. The webhook records each event id here
+/// before processing; the unique constraint makes redelivered events no-ops.
 model WebhookEvent {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   stripeEventId String   @unique @map("stripe_event_id")
