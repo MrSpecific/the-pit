@@ -37,6 +37,7 @@
   font-size: clamp(2.75rem, 12vw, 5rem);
   font-weight: 700;
   letter-spacing: 0.12em;
+  line-height: 1;
   text-transform: uppercase;
   color: var(--green-bright);
   text-shadow:
@@ -331,7 +332,7 @@
 }
 
 .entryName::before {
-  content: '> ';
+  content: "> ";
   color: var(--green-dim);
 }
 

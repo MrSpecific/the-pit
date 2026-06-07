@@ -1,19 +1,19 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { supabase } from './lib/supabase';
-import { Vortex } from './components/Vortex';
-import { MESSAGE_COLUMNS, type PitMessage } from './types';
-import styles from './App.module.css';
+import { useEffect, useState, type FormEvent } from "react";
+import { supabase } from "./lib/supabase";
+import { Vortex } from "./components/Vortex";
+import { MESSAGE_COLUMNS, type PitMessage } from "./types";
+import styles from "./App.module.css";
 
-const usd = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
+const usd = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
 });
 
 export function App() {
   const [messages, setMessages] = useState<PitMessage[]>([]);
-  const [name, setName] = useState('');
-  const [message, setMessage] = useState('');
-  const [amount, setAmount] = useState(''); // dollars, as typed
+  const [name, setName] = useState("");
+  const [message, setMessage] = useState("");
+  const [amount, setAmount] = useState(""); // dollars, as typed
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -28,10 +28,10 @@ export function App() {
     let active = true;
 
     client
-      .from('messages')
+      .from("messages")
       .select(MESSAGE_COLUMNS)
-      .eq('paid', true)
-      .order('paid_at', { ascending: false })
+      .eq("paid", true)
+      .order("paid_at", { ascending: false })
       .limit(100)
       .then(({ data, error }) => {
         if (!active) return;
@@ -43,10 +43,10 @@ export function App() {
       });
 
     const channel = client
-      .channel('public:messages')
+      .channel("public:messages")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'messages' },
+        "postgres_changes",
+        { event: "*", schema: "public", table: "messages" },
         (payload) => {
           const row = payload.new as (PitMessage & { paid?: boolean }) | null;
           if (!row || row.paid !== true) return;
@@ -69,28 +69,28 @@ export function App() {
 
     const dollars = Number.parseFloat(amount);
     if (!Number.isFinite(dollars) || dollars <= 0) {
-      setError('Enter an amount greater than zero.');
+      setError("Enter an amount greater than zero.");
       return;
     }
     const amountCents = Math.round(dollars * 100);
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/checkout', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ name, message, amountCents }),
       });
       const data = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !data.url) {
-        setError(data.error ?? 'Something went wrong.');
+        setError(data.error ?? "Something went wrong.");
         setSubmitting(false);
         return;
       }
       // Hand off to Stripe's hosted Checkout.
       window.location.href = data.url;
     } catch {
-      setError('Network error — please try again.');
+      setError("Network error — please try again.");
       setSubmitting(false);
     }
   }
@@ -98,10 +98,10 @@ export function App() {
   // Minimal handling of the Stripe redirect targets (success_url / cancel_url).
   const path = window.location.pathname;
   const banner =
-    path === '/checkout/success'
-      ? 'Payment received — your message drops in below once Stripe confirms it.'
-      : path === '/checkout/cancel'
-        ? 'Checkout canceled. You were not charged.'
+    path === "/checkout/success"
+      ? "Payment received — your message drops in below once Stripe confirms it."
+      : path === "/checkout/cancel"
+        ? "Checkout canceled. You were not charged."
         : null;
 
   return (
@@ -112,6 +112,7 @@ export function App() {
         <div className={styles.heroContent}>
           <header className={styles.header}>
             <p className={styles.kicker}>pay what you want</p>
+            <span className={styles.kicker}>to</span>
             <h1 className={styles.title}>The Pit</h1>
             <p className={styles.tagline}>
               drop a message into the void
@@ -153,67 +154,67 @@ export function App() {
                 <label className={styles.label} htmlFor="name">
                   Name
                 </label>
-              <input
-                id="name"
-                className={styles.input}
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={80}
-                autoComplete="off"
-                required
-              />
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="message">
-                Message
-              </label>
-              <textarea
-                id="message"
-                className={styles.textarea}
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                maxLength={500}
-                required
-              />
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="amount">
-                Amount
-              </label>
-              <div className={styles.amount}>
-                <span className={styles.amountSign} aria-hidden="true">
-                  $
-                </span>
                 <input
-                  id="amount"
-                  className={styles.amountInput}
-                  type="number"
-                  min="1"
-                  step="0.01"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  id="name"
+                  className={styles.input}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={80}
+                  autoComplete="off"
                   required
                 />
               </div>
-            </div>
 
-            {error && (
-              <p className={styles.error} role="alert">
-                {error}
-              </p>
-            )}
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="message">
+                  Message
+                </label>
+                <textarea
+                  id="message"
+                  className={styles.textarea}
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
+                  maxLength={500}
+                  required
+                />
+              </div>
 
-            <button
-              className={styles.submit}
-              type="submit"
-              disabled={submitting}
-            >
-              {submitting ? 'Redirecting…' : 'Pay & post'}
-            </button>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="amount">
+                  Amount
+                </label>
+                <div className={styles.amount}>
+                  <span className={styles.amountSign} aria-hidden="true">
+                    $
+                  </span>
+                  <input
+                    id="amount"
+                    className={styles.amountInput}
+                    type="number"
+                    min="1"
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="0.00"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <p className={styles.error} role="alert">
+                  {error}
+                </p>
+              )}
+
+              <button
+                className={styles.submit}
+                type="submit"
+                disabled={submitting}
+              >
+                {submitting ? "Redirecting…" : "Pay & post"}
+              </button>
             </form>
           )}
         </div>

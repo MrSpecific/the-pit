@@ -1,16 +1,16 @@
-/* Decorative vector vortex behind the hero.
+/* Decorative vector funnel behind the hero.
  *
- * The wrapper provides 3D perspective; the <svg> is tilted back so we look
- * "into" the funnel, and the inner group spins around the tube axis — together
- * reading as a slowly rotating 3D vortex. Stroke is inherited by every shape,
- * so per-shape attributes only set width/opacity. */
+ * The 3D is baked into the geometry (a perspective projection of a real funnel,
+ * computed in Vortex.tsx) — not a CSS tilt — so it reads as genuine depth.
+ * Stroke is inherited by every shape, so per-shape attributes only set
+ * width/opacity. */
 .wrap {
   position: absolute;
   inset: 0;
   margin: auto;
-  width: min(96vmin, 940px);
-  height: min(96vmin, 940px);
-  perspective: 1150px;
+  /* Oversized so the funnel mouth bleeds past the hero edges. */
+  width: min(150vmin, 1400px);
+  height: min(150vmin, 1400px);
   pointer-events: none;
 }
 
@@ -19,25 +19,11 @@
   height: 100%;
   stroke: var(--green);
   fill: none;
-  filter: drop-shadow(0 0 3px rgba(43, 255, 136, 0.5));
-  /* Tilt the disc back into the screen, then spin it around its own axis.
-   * Animating the element's transform keeps the whole vortex on one composited
-   * layer (no per-frame re-raster of the vector lines). */
-  transform: rotateX(62deg);
-  animation: vortex-spin 90s linear infinite;
+  overflow: visible;
+  filter: drop-shadow(0 0 2.5px rgba(43, 255, 136, 0.45));
 }
 
-@keyframes vortex-spin {
-  from {
-    transform: rotateX(62deg) rotateZ(0deg);
-  }
-  to {
-    transform: rotateX(62deg) rotateZ(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .vortex {
-    animation: none;
-  }
+/* The funnel walls — dimmer than the rings so they read as structure. */
+.spokes {
+  opacity: 0.32;
 }
