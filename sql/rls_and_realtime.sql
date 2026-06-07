@@ -25,7 +25,21 @@ create policy "Paid messages are public"
 
 -- webhook_events: no policies => no browser access at all (service role only).
 
--- 2. Realtime ----------------------------------------------------------------
+-- 2. Running total -----------------------------------------------------------
+--    Total cents "fed to the pit". SECURITY INVOKER (the default) + the RLS
+--    policy above mean this sums exactly the rows the caller can see — paid,
+--    non-refunded — so the anon browser gets the correct public total safely.
+create or replace function public.pit_total()
+returns bigint
+language sql
+stable
+as $$
+  select coalesce(sum(amount_cents), 0)::bigint from public.messages;
+$$;
+
+grant execute on function public.pit_total() to anon, authenticated;
+
+-- 3. Realtime ----------------------------------------------------------------
 --    Publish `messages` so the browser can subscribe to changes. The RLS
 --    policy above still gates what each subscriber receives, so clients only
 --    ever see a row once it flips to paid = true. `replica identity full`

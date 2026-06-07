@@ -17,6 +17,13 @@ const usd = new Intl.NumberFormat("en-US", {
   currency: "USD",
 });
 
+// Whole-dollar formatter for the running total headline.
+const usdWhole = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  maximumFractionDigits: 0,
+});
+
 const NAME_MAX = 80;
 const MSG_MAX = 500;
 const SUGGESTED = [1, 5, 10, 20, 50, 100]; // dollar quick-picks
@@ -32,6 +39,17 @@ export function App() {
   const [formOpen, setFormOpen] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [newIds, setNewIds] = useState<Set<string>>(new Set());
+  const [total, setTotal] = useState(0); // total cents fed to the pit
+  // Post-checkout state, seeded from the Stripe redirect path.
+  const [checkout, setCheckout] = useState<null | "success" | "cancel">(() => {
+    const p = window.location.pathname;
+    return p === "/checkout/success"
+      ? "success"
+      : p === "/checkout/cancel"
+        ? "cancel"
+        : null;
+  });
+  const [confirmed, setConfirmed] = useState<{ amount: number } | null>(null);
   const audio = useAudio();
 
   const vortex = useRef<VortexHandle>(null);
@@ -88,6 +106,11 @@ export function App() {
         });
       });
 
+    // Full running total across all paid, non-refunded messages.
+    client.rpc("pit_total").then(({ data, error }) => {
+      if (active && !error) setTotal(Number(data) || 0);
+    });
+
     const channel = client
       .channel("public:messages")
       .on(
@@ -97,7 +120,10 @@ export function App() {
           const row = payload.new as
             | (PitMessage & { paid?: boolean; refunded_at?: string | null })
             | null;
-          const old = payload.old as { id?: string } | null;
+          const old = payload.old as {
+            id?: string;
+            amount_cents?: number;
+          } | null;
           const id = row?.id ?? old?.id;
           if (!id) return;
           // A row belongs in the feed only while it's paid and not refunded;
@@ -114,9 +140,13 @@ export function App() {
               vortex.current?.drop((row as PitMessage).amount_cents);
               setNewIds((prev) => new Set(prev).add(id));
               audio.blip();
+              setTotal((t) => t + (row as PitMessage).amount_cents);
             }
           } else {
             knownIds.current.delete(id);
+            // Refund/removal — pull its amount back out of the running total.
+            const amt = row?.amount_cents ?? old?.amount_cents;
+            if (amt) setTotal((t) => Math.max(0, t - amt));
           }
           setMessages((prev) => {
             if (!visible) return prev.filter((m) => m.id !== id);
@@ -184,6 +214,40 @@ export function App() {
     if (formOpen) amountInput.current?.focus({ preventScroll: true });
   }, [formOpen]);
 
+  // On the success page, poll for the (now paid) message by its session id to
+  // confirm it landed and show the actual amount. The webhook may lag a few
+  // seconds, so we retry briefly.
+  useEffect(() => {
+    if (checkout !== "success" || !supabase) return;
+    const client = supabase;
+    const sessionId = new URLSearchParams(window.location.search).get(
+      "session_id",
+    );
+    if (!sessionId) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout>;
+    let tries = 0;
+    const poll = async () => {
+      const { data } = await client
+        .from("messages")
+        .select("amount_cents")
+        .eq("stripe_session_id", sessionId)
+        .eq("paid", true)
+        .maybeSingle();
+      if (!active) return;
+      if (data) {
+        setConfirmed({ amount: (data as { amount_cents: number }).amount_cents });
+        return;
+      }
+      if (++tries < 20) timer = setTimeout(poll, 2000);
+    };
+    timer = setTimeout(poll, 600);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [checkout]);
+
   function dismissNew(id: string) {
     setNewIds((prev) => {
       if (!prev.has(id)) return prev;
@@ -239,14 +303,19 @@ export function App() {
     setAmount((Math.random() * 99999 + 1).toFixed(2));
   }
 
-  // Minimal handling of the Stripe redirect targets (success_url / cancel_url).
-  const path = window.location.pathname;
-  const banner =
-    path === "/checkout/success"
-      ? "Payment received — your message drops in below once Stripe confirms it."
-      : path === "/checkout/cancel"
-        ? "Checkout canceled. You were not charged."
-        : null;
+  // Leave the post-checkout view and clean the Stripe redirect out of the URL.
+  function throwMore() {
+    setCheckout(null);
+    setConfirmed(null);
+    window.history.replaceState({}, "", "/");
+    setFormOpen(true);
+  }
+
+  function viewFeed() {
+    setCheckout(null);
+    window.history.replaceState({}, "", "/");
+    document.getElementById("feed")?.scrollIntoView({ behavior: "smooth" });
+  }
 
   return (
     <>
@@ -267,13 +336,62 @@ export function App() {
             </p>
           </header>
 
-          {banner && (
-            <p className={styles.banner} role="status">
-              {banner} <a href="/">[back]</a>
-            </p>
-          )}
-
-          {!formOpen ? (
+          {checkout ? (
+            <div className={styles.checkoutPanel} role="status">
+              {checkout === "success" ? (
+                <>
+                  <div className={styles.checkoutMark} aria-hidden="true">
+                    ✓
+                  </div>
+                  <h2 className={styles.checkoutTitle}>
+                    {confirmed
+                      ? `${usd.format(confirmed.amount / 100)} is in the pit`
+                      : "into the void…"}
+                  </h2>
+                  <p className={styles.checkoutText}>
+                    {confirmed
+                      ? "Your message has been swallowed — find it in the feed below."
+                      : "Confirming your offering — it'll drop in any second now."}
+                    {!confirmed && (
+                      <span className={styles.cursor} aria-hidden="true" />
+                    )}
+                  </p>
+                  <div className={styles.checkoutActions}>
+                    <button
+                      type="button"
+                      className={styles.openButton}
+                      onClick={viewFeed}
+                    >
+                      [ view the feed ]
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.chip}
+                      onClick={throwMore}
+                    >
+                      throw more
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className={styles.checkoutTitle}>checkout canceled</h2>
+                  <p className={styles.checkoutText}>
+                    You weren't charged. The void remains hungry.
+                  </p>
+                  <div className={styles.checkoutActions}>
+                    <button
+                      type="button"
+                      className={styles.openButton}
+                      onClick={throwMore}
+                    >
+                      [ try again ]
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : !formOpen ? (
             <button
               type="button"
               className={styles.openButton}
@@ -409,6 +527,12 @@ export function App() {
       </section>
 
       <section id="feed" className={styles.feedSection}>
+        <p className={styles.feedTotal}>
+          <span className={styles.feedTotalAmount}>
+            {usdWhole.format(total / 100)}
+          </span>{" "}
+          fed to the pit so far…
+        </p>
         <h2 className={styles.feedHeading}>// the pit feed</h2>
         {messages.length === 0 ? (
           <p className={styles.empty}>Nothing in the pit yet.</p>
