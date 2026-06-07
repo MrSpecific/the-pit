@@ -81,6 +81,9 @@ checkout.post('/', async (c) => {
   const origin = new URL(c.req.url).origin;
   const session = await stripe.checkout.sessions.create({
     mode: 'payment',
+    // Request card explicitly rather than relying on the account's dynamic
+    // payment-method config (which errors if nothing compatible is activated).
+    payment_method_types: ['card'],
     line_items: [
       {
         quantity: 1,
