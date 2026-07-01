@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { config } from "../config";
 
-// All sound is synthesized with the Web Audio API — no asset files. A low
-// white-noise bed plus sparse random "ticks" gives a geiger-counter ambience,
-// and each new message lands with a short rising blip.
+// The ambient bed comes in two flavours, chosen in ../config:
+//   "synth" — synthesized with the Web Audio API (no asset files): a low
+//             white-noise bed plus sparse random "ticks" for a geiger-counter
+//             ambience.
+//   "file"  — a looped audio asset (config.backgroundAudioSrc).
+// In both modes each new message lands with a short crackle blip, which is
+// always synthesized via Web Audio.
 
 function makeNoise(ctx: AudioContext, seconds: number): AudioBuffer {
   const len = Math.floor(ctx.sampleRate * seconds);
@@ -81,6 +86,9 @@ export function useAudio(): AudioControls {
   const masterRef = useRef<GainNode | null>(null);
   const tickTimer = useRef<number | null>(null);
   const enabledRef = useRef(enabled);
+  // File-based bed: the looping <audio> element, routed through the context so
+  // it shares the master fade with the crackle blips.
+  const bgElRef = useRef<HTMLAudioElement | null>(null);
 
   // Lazily build the graph on first enable — inside the user gesture, so the
   // browser's autoplay policy lets it run.
@@ -108,16 +116,29 @@ export function useAudio(): AudioControls {
       master.gain.value = 0;
       master.connect(ctx.destination);
 
-      const bed = ctx.createBufferSource();
-      bed.buffer = makeNoise(ctx, 2);
-      bed.loop = true;
-      const lp = ctx.createBiquadFilter();
-      lp.type = "lowpass";
-      lp.frequency.value = 600;
-      const bedGain = ctx.createGain();
-      bedGain.gain.value = 0.05;
-      bed.connect(lp).connect(bedGain).connect(master);
-      bed.start();
+      if (config.backgroundAudio === "synth") {
+        const bed = ctx.createBufferSource();
+        bed.buffer = makeNoise(ctx, 2);
+        bed.loop = true;
+        const lp = ctx.createBiquadFilter();
+        lp.type = "lowpass";
+        lp.frequency.value = 600;
+        const bedGain = ctx.createGain();
+        bedGain.gain.value = 0.05;
+        bed.connect(lp).connect(bedGain).connect(master);
+        bed.start();
+      } else {
+        // Loop the audio asset, routed through a gain into the master so it
+        // fades with everything else.
+        const el = new Audio(config.backgroundAudioSrc);
+        el.loop = true;
+        el.crossOrigin = "anonymous";
+        const bedSrc = ctx.createMediaElementSource(el);
+        const bedGain = ctx.createGain();
+        bedGain.gain.value = config.backgroundAudioVolume;
+        bedSrc.connect(bedGain).connect(master);
+        bgElRef.current = el;
+      }
 
       ctxRef.current = ctx;
       masterRef.current = master;
@@ -125,9 +146,10 @@ export function useAudio(): AudioControls {
     const ctx = ctxRef.current;
     const master = masterRef.current!;
     void ctx.resume();
+    void bgElRef.current?.play();
     master.gain.cancelScheduledValues(ctx.currentTime);
     master.gain.setTargetAtTime(0.5, ctx.currentTime, 0.25); // fade in
-    if (tickTimer.current == null) {
+    if (config.backgroundAudio === "synth" && tickTimer.current == null) {
       tickTimer.current = window.setInterval(() => {
         if (Math.random() < 0.2) tick(ctx, master); // ~1 tick / 4–5s, irregular
       }, 900);
@@ -145,6 +167,9 @@ export function useAudio(): AudioControls {
       master.gain.cancelScheduledValues(ctx.currentTime);
       master.gain.setTargetAtTime(0, ctx.currentTime, 0.2); // fade out
     }
+    // Pause the looping asset after the fade so it doesn't keep decoding.
+    const el = bgElRef.current;
+    if (el) window.setTimeout(() => el.pause(), 300);
   }, []);
 
   const toggle = useCallback(() => {
@@ -190,6 +215,7 @@ export function useAudio(): AudioControls {
   useEffect(() => {
     return () => {
       if (tickTimer.current != null) clearInterval(tickTimer.current);
+      bgElRef.current?.pause();
       void ctxRef.current?.close();
     };
   }, []);
