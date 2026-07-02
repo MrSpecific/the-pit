@@ -170,6 +170,11 @@ export function App() {
         "postgres_changes",
         { event: "*", schema: "public", table: "messages" },
         (payload) => {
+          console.debug(
+            "[the-pit] realtime change:",
+            payload.eventType,
+            payload.new,
+          );
           const row = payload.new as
             | (PitMessage & { paid?: boolean; refunded_at?: string | null })
             | null;
@@ -208,12 +213,26 @@ export function App() {
           });
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        // Surface the channel lifecycle: SUBSCRIBED means we're listening.
+        // CHANNEL_ERROR / TIMED_OUT means the subscription itself failed
+        // (realtime auth, RLS, or the table not in the publication) — in that
+        // case no postgres_changes ever arrive, silently, without this log.
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.error("[the-pit] realtime subscribe failed:", status, err);
+        } else {
+          console.debug("[the-pit] realtime status:", status);
+        }
+      });
 
     return () => {
       active = false;
       timers.forEach(clearTimeout);
-      client.removeChannel(channel);
+      // Defer teardown a tick. Under React StrictMode's dev double-mount, the
+      // synchronous cleanup would otherwise close the still-connecting realtime
+      // socket mid-handshake ("WebSocket is closed before the connection is
+      // established"); deferring lets the immediate remount reuse it instead.
+      setTimeout(() => client.removeChannel(channel), 0);
     };
   }, []);
 
@@ -400,20 +419,20 @@ export function App() {
                   </h2>
                   <p className={styles.checkoutText}>
                     {confirmed
-                      ? "Your message has been swallowed — find it in the feed below."
+                      ? "Your money is gone. The Pit is satisfied."
                       : "Confirming your offering — it'll drop in any second now."}
                     {!confirmed && (
                       <span className={styles.cursor} aria-hidden="true" />
                     )}
                   </p>
                   <div className={styles.checkoutActions}>
-                    <button
+                    {/* <button
                       type="button"
                       className={styles.openButton}
                       onClick={viewFeed}
                     >
                       [ view the feed ]
-                    </button>
+                    </button> */}
                     <button
                       type="button"
                       className={styles.chip}
