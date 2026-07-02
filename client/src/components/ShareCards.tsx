@@ -28,8 +28,9 @@ function formatAmount(cents: number): string {
 function setTracking(ctx: CanvasRenderingContext2D, px: number) {
   // letterSpacing is widely supported (Safari 16.4+); degrade gracefully.
   if ("letterSpacing" in ctx) {
-    (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing =
-      `${px}px`;
+    (
+      ctx as CanvasRenderingContext2D & { letterSpacing: string }
+    ).letterSpacing = `${px}px`;
   }
 }
 
@@ -153,7 +154,7 @@ const DESIGNS: Design[] = [
       });
 
       setTracking(ctx, 16);
-      glowText(ctx, "INTO THE VOID", SIZE / 2, 660, {
+      glowText(ctx, "INTO THE PIT", SIZE / 2, 660, {
         size: 40,
         weight: 500,
         color: C.green,

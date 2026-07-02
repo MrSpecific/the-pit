@@ -33,7 +33,9 @@ const PREVIEW_AMOUNT_CENTS: number | null = (() => {
   const params = new URLSearchParams(window.location.search);
   if (params.get("preview") !== "success") return null;
   const dollars = Number(params.get("amount"));
-  return Math.round((Number.isFinite(dollars) && dollars > 0 ? dollars : 50) * 100);
+  return Math.round(
+    (Number.isFinite(dollars) && dollars > 0 ? dollars : 50) * 100,
+  );
 })();
 
 const NAME_MAX = 80;
@@ -394,7 +396,7 @@ export function App() {
                   <h2 className={styles.checkoutTitle}>
                     {confirmed
                       ? `${usd.format(confirmed.amount / 100)} is in the pit`
-                      : "into the void…"}
+                      : "into the pit"}
                   </h2>
                   <p className={styles.checkoutText}>
                     {confirmed
@@ -574,7 +576,7 @@ export function App() {
                 >
                   {submitting
                     ? "Redirecting…"
-                    : "THROW YOUR MONEY INTO THE VOID"}
+                    : "THROW YOUR MONEY INTO THE PIT"}
                 </button>
               </form>
             </>
