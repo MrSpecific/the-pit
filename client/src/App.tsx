@@ -228,11 +228,13 @@ export function App() {
     return () => {
       active = false;
       timers.forEach(clearTimeout);
-      // Defer teardown a tick. Under React StrictMode's dev double-mount, the
-      // synchronous cleanup would otherwise close the still-connecting realtime
-      // socket mid-handshake ("WebSocket is closed before the connection is
-      // established"); deferring lets the immediate remount reuse it instead.
-      setTimeout(() => client.removeChannel(channel), 0);
+      // Remove synchronously so a remount (React StrictMode double-invokes
+      // effects in dev) gets a fresh channel. Deferring this would let the next
+      // mount reuse the same still-subscribed channel by topic, and adding the
+      // postgres_changes listener to it again throws. The one-time "WebSocket
+      // closed before connection established" warning this can print in dev is
+      // harmless and never happens in production (no double-invoke there).
+      client.removeChannel(channel);
     };
   }, []);
 
@@ -481,7 +483,7 @@ export function App() {
               />
               <form className={styles.form} onSubmit={handleSubmit}>
                 <div className={styles.formHeader}>
-                  <span className={styles.formTitle}>// burn money</span>
+                  {/* <span className={styles.formTitle}>// burn money</span> */}
                   <button
                     type="button"
                     className={styles.minimize}
@@ -597,6 +599,9 @@ export function App() {
                     ? "Redirecting…"
                     : "THROW YOUR MONEY INTO THE PIT"}
                 </button>
+                <p className={styles.warning}>
+                  Don't do it, nothing will happen.
+                </p>
               </form>
             </>
           )}

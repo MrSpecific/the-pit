@@ -198,6 +198,13 @@
   text-align: left;
 }
 
+.warning {
+  font-size: 0.5rem;
+  opacity: 0.75;
+  text-align: center;
+  margin-top: 0;
+}
+
 /* Collapsed state: a single CTA, so the landing view is just the pit. */
 .openButton {
   font: inherit;
