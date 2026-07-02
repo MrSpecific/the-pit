@@ -17,8 +17,8 @@ import styles from "./Vortex.module.css";
 // recomputed per frame and written straight to the DOM (no React re-render).
 const CX = 500; // projection center (viewBox units)
 const CY = 360;
-const SIDES = 18; // vertices per ring / number of spokes
-const RINGS = 30;
+const SIDES = 19; // vertices per ring / number of spokes
+const RINGS = 32;
 const R_MAX = 440; // mouth radius, local units
 const SHRINK = 0.88; // ring radius shrinks by this each step inward
 const DEPTH = 1500; // how far the throat sits down the axis
@@ -33,8 +33,8 @@ const SPIN_PERIOD = 70; // seconds per revolution
 // Amount-drop animation: a paid amount fades in near the rim, spirals inward
 // and down the funnel wall (shrinking with perspective) until it reaches the
 // throat and fades out — "sucked into the pit".
-const DROP_LIFETIME = 20000; // ms from rim to throat
-const DROP_TURNS = 0; // extra revolutions; 0 = ride the vortex's own spin exactly
+const DROP_LIFETIME = 90000; // ms from rim to throat
+const DROP_TURNS = -1; // extra revolutions; 0 = ride the vortex's own spin exactly
 const DROP_FONT = 9; // label size (viewBox units) at the rim
 
 type Vec3 = { x: number; y: number; z: number };

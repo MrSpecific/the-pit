@@ -395,11 +395,15 @@ export function App() {
             {/* <h1 className={styles.title} data-text="The Pit">
               The Pit
             </h1> */}
-            <p className={styles.tagline}>
-              how much money will <span className={styles.italic}>you</span>{" "}
-              throw in the pit?
+            <button
+              type="button"
+              className={styles.tagline}
+              onClick={() => setFormOpen(true)}
+            >
+              how much will <span className={styles.italic}>you</span> throw in
+              the pit?
               <span className={styles.cursor} aria-hidden="true" />
-            </p>
+            </button>
           </header>
 
           {checkout ? (

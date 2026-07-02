@@ -152,12 +152,29 @@
 }
 
 .tagline {
+  display: inline;
   margin: 0.7rem 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: inherit;
   color: var(--text-dim);
   font-size: 0.8rem;
   letter-spacing: 0.04em;
   opacity: 0;
   animation: tagline-fade-in 1.5s ease-out 10s forwards;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.tagline:focus-visible {
+  outline: 1px solid var(--green-bright);
+  outline-offset: 4px;
+}
+
+.tagline:hover .italic {
+  text-shadow: 0 0 8px var(--green-bright);
 }
 
 @keyframes tagline-fade-in {
