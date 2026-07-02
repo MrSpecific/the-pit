@@ -46,8 +46,17 @@
   text-shadow:
     0 0 18px rgba(43, 255, 136, 0.55),
     0 0 4px rgba(43, 255, 136, 0.9);
-  /* Occasional whole-word jitter (mostly at rest). */
-  animation: glitch-skew 7s infinite steps(1);
+  opacity: 0;
+  /* Fade in after 5s, then occasional whole-word jitter (mostly at rest). */
+  animation:
+    title-fade-in 1.5s ease-out 5s forwards,
+    glitch-skew 7s infinite steps(1);
+}
+
+@keyframes title-fade-in {
+  to {
+    opacity: 1;
+  }
 }
 
 /* Two chromatic ghosts that slice + offset in brief bursts — haunted CRT. */
@@ -147,6 +156,14 @@
   color: var(--text-dim);
   font-size: 0.8rem;
   letter-spacing: 0.04em;
+  opacity: 0;
+  animation: tagline-fade-in 1.5s ease-out 10s forwards;
+}
+
+@keyframes tagline-fade-in {
+  to {
+    opacity: 1;
+  }
 }
 
 .italic {
@@ -202,6 +219,22 @@
     box-shadow 0.12s ease;
 }
 
+/* Pinned to the top-left corner as a compact "$" trigger. */
+.throwCorner {
+  position: fixed;
+  top: 1.25rem;
+  left: 1.25rem;
+  z-index: 10;
+  padding: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  letter-spacing: 0;
+}
+
 .openButton:hover {
   background: var(--green);
   color: #000;
@@ -228,6 +261,7 @@
   justify-items: center;
   text-align: center;
   padding: 1.6rem 1.4rem;
+  transition: max-width 0.3s ease;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: rgba(4, 7, 4, 0.78);
@@ -235,6 +269,15 @@
   box-shadow:
     var(--glow-md),
     inset 0 0 26px rgba(43, 255, 136, 0.05);
+}
+
+/* When share cards are present the panel breaks out of the 440px hero column
+ * for a roomier 3-up preview grid, staying centered on the viewport. */
+.checkoutPanelWide {
+  max-width: none;
+  width: min(620px, calc(100vw - 2rem));
+  margin-left: 50%;
+  transform: translateX(-50%);
 }
 
 .checkoutMark {
@@ -305,7 +348,45 @@
   text-shadow: var(--glow-text);
 }
 
+/* Dimming backdrop behind the form; click to dismiss. */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+  animation: overlay-fade-in 0.2s ease-out both;
+}
+
+@keyframes overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes form-fade-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
 .form {
+  /* Fixed, centered overlay so opening the form doesn't shift the hero. */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  animation: form-fade-in 0.25s ease-out both;
+  width: calc(100% - 2.5rem);
+  max-width: 440px;
+  max-height: calc(100dvh - 2.5rem);
+  overflow-y: auto;
   display: grid;
   /* minmax(0, 1fr) lets the column shrink to the panel width instead of
    * expanding to the inputs' content size (which blows them out). */

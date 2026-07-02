@@ -1,0 +1,77 @@
+.wrap {
+  width: 100%;
+  margin-top: 0.4rem;
+}
+
+.prompt {
+  margin: 0 0 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-size: 0.66rem;
+  color: var(--green-dim);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  opacity: 0;
+  transition: opacity 0.4s ease-out;
+}
+
+.grid[data-ready="true"] {
+  opacity: 1;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.canvas {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--glow-sm);
+}
+
+.actions {
+  display: flex;
+  gap: 0.35rem;
+  justify-content: center;
+}
+
+.action {
+  flex: 1;
+  font: inherit;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--green-dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.35rem 0.2rem;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.action:hover {
+  color: var(--green-bright);
+  border-color: var(--border-strong);
+  box-shadow: var(--glow-sm);
+}
+
+@media (max-width: 460px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}

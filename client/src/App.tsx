@@ -8,6 +8,7 @@ import {
 import { supabase } from "./lib/supabase";
 import { Vortex, type VortexHandle } from "./components/Vortex";
 import { Faq } from "./components/Faq";
+import { ShareCards } from "./components/ShareCards";
 import { useAudio } from "./lib/audio";
 import { MESSAGE_COLUMNS, type PitMessage } from "./types";
 import styles from "./App.module.css";
@@ -23,6 +24,17 @@ const usdWhole = new Intl.NumberFormat("en-US", {
   currency: "USD",
   maximumFractionDigits: 0,
 });
+
+// Dev-only preview: `?preview=success` (optionally `&amount=<dollars>`) forces
+// the post-checkout success state — share cards included — with no real Stripe
+// round-trip. Returns the amount in cents, or null (always null in prod builds).
+const PREVIEW_AMOUNT_CENTS: number | null = (() => {
+  if (!import.meta.env.DEV) return null;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("preview") !== "success") return null;
+  const dollars = Number(params.get("amount"));
+  return Math.round((Number.isFinite(dollars) && dollars > 0 ? dollars : 50) * 100);
+})();
 
 const NAME_MAX = 80;
 const MSG_MAX = 500;
@@ -75,6 +87,7 @@ export function App() {
   const [total, setTotal] = useState(0); // total cents fed to the pit
   // Post-checkout state, seeded from the Stripe redirect path.
   const [checkout, setCheckout] = useState<null | "success" | "cancel">(() => {
+    if (PREVIEW_AMOUNT_CENTS !== null) return "success";
     const p = window.location.pathname;
     return p === "/checkout/success"
       ? "success"
@@ -82,7 +95,9 @@ export function App() {
         ? "cancel"
         : null;
   });
-  const [confirmed, setConfirmed] = useState<{ amount: number } | null>(null);
+  const [confirmed, setConfirmed] = useState<{ amount: number } | null>(
+    PREVIEW_AMOUNT_CENTS !== null ? { amount: PREVIEW_AMOUNT_CENTS } : null,
+  );
   const animatedTotal = useCountUp(total);
   const audio = useAudio();
 
@@ -352,11 +367,11 @@ export function App() {
 
         <div className={styles.heroContent}>
           <header className={styles.header}>
-            <p className={styles.kicker}>throw your money</p>
-            <span className={styles.kicker}>into</span>
-            <h1 className={styles.title} data-text="The Pit">
+            {/* <p className={styles.kicker}>throw your money</p>
+            <span className={styles.kicker}>into</span> */}
+            {/* <h1 className={styles.title} data-text="The Pit">
               The Pit
-            </h1>
+            </h1> */}
             <p className={styles.tagline}>
               how much money will <span className={styles.italic}>you</span>{" "}
               throw in the pit?
@@ -365,7 +380,12 @@ export function App() {
           </header>
 
           {checkout ? (
-            <div className={styles.checkoutPanel} role="status">
+            <div
+              className={`${styles.checkoutPanel} ${
+                confirmed ? styles.checkoutPanelWide : ""
+              }`}
+              role="status"
+            >
               {checkout === "success" ? (
                 <>
                   <div className={styles.checkoutMark} aria-hidden="true">
@@ -400,6 +420,7 @@ export function App() {
                       throw more
                     </button>
                   </div>
+                  {confirmed && <ShareCards amountCents={confirmed.amount} />}
                 </>
               ) : (
                 <>
@@ -422,136 +443,147 @@ export function App() {
           ) : !formOpen ? (
             <button
               type="button"
-              className={styles.openButton}
+              className={`${styles.openButton} ${styles.throwCorner}`}
               aria-expanded={false}
+              aria-label="Throw money"
+              title="Throw money"
               onClick={() => setFormOpen(true)}
             >
-              [ throw money ]
+              $
             </button>
           ) : (
-            <form className={styles.form} onSubmit={handleSubmit}>
-              <div className={styles.formHeader}>
-                <span className={styles.formTitle}>// burn money</span>
-                <button
-                  type="button"
-                  className={styles.minimize}
-                  onClick={() => setFormOpen(false)}
-                  aria-label="Minimize"
-                  title="Minimize"
-                >
-                  [–]
-                </button>
-              </div>
-
-              {/* Amount — the lead control. */}
-              <div className={styles.amountField}>
-                <label className={styles.label} htmlFor="amount">
-                  How much?
-                </label>
-                <div className={styles.amountBig}>
-                  <span className={styles.amountSign} aria-hidden="true">
-                    $
-                  </span>
-                  <input
-                    id="amount"
-                    ref={amountInput}
-                    className={styles.amountInput}
-                    type="number"
-                    min="1"
-                    step="0.01"
-                    inputMode="decimal"
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className={styles.amountControls}>
-                  {SUGGESTED.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      className={styles.chip}
-                      onClick={() => setAmount(String(s))}
-                    >
-                      ${s}
-                    </button>
-                  ))}
+            <>
+              <div
+                className={styles.overlay}
+                onClick={() => setFormOpen(false)}
+                aria-hidden="true"
+              />
+              <form className={styles.form} onSubmit={handleSubmit}>
+                <div className={styles.formHeader}>
+                  <span className={styles.formTitle}>// burn money</span>
                   <button
                     type="button"
-                    className={styles.chip}
-                    onClick={randomizeAmount}
+                    className={styles.minimize}
+                    onClick={() => setFormOpen(false)}
+                    aria-label="Minimize"
+                    title="Minimize"
                   >
-                    ⚲ random
+                    [–]
                   </button>
                 </div>
-              </div>
 
-              <div className={styles.field}>
-                <div className={styles.labelRow}>
-                  <label className={styles.label} htmlFor="name">
-                    Name <span className={styles.counter}>(optional)</span>
+                {/* Amount — the lead control. */}
+                <div className={styles.amountField}>
+                  <label className={styles.label} htmlFor="amount">
+                    How much?
                   </label>
-                  <span
-                    className={`${styles.counter} ${
-                      name.length >= NAME_MAX ? styles.counterMax : ""
-                    }`}
-                  >
-                    {name.length}/{NAME_MAX}
-                  </span>
+                  <div className={styles.amountBig}>
+                    <span className={styles.amountSign} aria-hidden="true">
+                      $
+                    </span>
+                    <input
+                      id="amount"
+                      ref={amountInput}
+                      className={styles.amountInput}
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className={styles.amountControls}>
+                    {SUGGESTED.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        className={styles.chip}
+                        onClick={() => setAmount(String(s))}
+                      >
+                        ${s}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      className={styles.chip}
+                      onClick={randomizeAmount}
+                    >
+                      ⚲ random
+                    </button>
+                  </div>
                 </div>
-                <input
-                  id="name"
-                  className={styles.input}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  maxLength={NAME_MAX}
-                  autoComplete="off"
-                />
-              </div>
 
-              <div className={styles.field}>
-                <div className={styles.labelRow}>
-                  <label className={styles.label} htmlFor="message">
-                    Message <span className={styles.counter}>(optional)</span>
-                  </label>
-                  <span
-                    className={`${styles.counter} ${
-                      message.length >= MSG_MAX ? styles.counterMax : ""
-                    }`}
-                  >
-                    {message.length}/{MSG_MAX}
-                  </span>
+                <div className={styles.field}>
+                  <div className={styles.labelRow}>
+                    <label className={styles.label} htmlFor="name">
+                      Name <span className={styles.counter}>(optional)</span>
+                    </label>
+                    <span
+                      className={`${styles.counter} ${
+                        name.length >= NAME_MAX ? styles.counterMax : ""
+                      }`}
+                    >
+                      {name.length}/{NAME_MAX}
+                    </span>
+                  </div>
+                  <input
+                    id="name"
+                    className={styles.input}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    maxLength={NAME_MAX}
+                    autoComplete="off"
+                  />
                 </div>
-                <textarea
-                  id="message"
-                  className={styles.textarea}
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  maxLength={MSG_MAX}
-                />
-              </div>
 
-              {error && (
-                <p className={styles.error} role="alert">
-                  {error}
-                </p>
-              )}
+                <div className={styles.field}>
+                  <div className={styles.labelRow}>
+                    <label className={styles.label} htmlFor="message">
+                      Message <span className={styles.counter}>(optional)</span>
+                    </label>
+                    <span
+                      className={`${styles.counter} ${
+                        message.length >= MSG_MAX ? styles.counterMax : ""
+                      }`}
+                    >
+                      {message.length}/{MSG_MAX}
+                    </span>
+                  </div>
+                  <textarea
+                    id="message"
+                    className={styles.textarea}
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    maxLength={MSG_MAX}
+                  />
+                </div>
 
-              <button
-                className={styles.submit}
-                type="submit"
-                disabled={submitting}
-              >
-                {submitting ? "Redirecting…" : "THROW YOUR MONEY INTO THE VOID"}
-              </button>
-            </form>
+                {error && (
+                  <p className={styles.error} role="alert">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  className={styles.submit}
+                  type="submit"
+                  disabled={submitting}
+                >
+                  {submitting
+                    ? "Redirecting…"
+                    : "THROW YOUR MONEY INTO THE VOID"}
+                </button>
+              </form>
+            </>
           )}
         </div>
 
-        <a className={styles.scrollHint} href="#feed">
+        {/* <a className={styles.scrollHint} href="#feed">
           ▼ the feed
-        </a>
+        </a> */}
       </section>
 
       <section id="feed" className={styles.feedSection}>

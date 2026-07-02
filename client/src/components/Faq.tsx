@@ -6,34 +6,41 @@ import styles from "./Faq.module.css";
 const FAQS: { q: string; a: ReactNode }[] = [
   {
     q: "What is The Pit?",
-    a: "The Pit accepts your tribute. Leave your name and a message for posterity, if you like.",
+    a: "A pit to throw your money into.",
+  },
+  // {
+  //   q: "Where does my money go?",
+  //   a: "Into the void. There are no refunds — only throw in what you're comfortable losing.",
+  // },
+  {
+    q: "Why?",
+    a: "Why, indeed?",
   },
   {
-    q: "Where does my money go?",
-    a: "Into the void. There are no refunds — only throw in what you're comfortable losing.",
+    q: "Is it lucky to throw money into The Pit?",
+    a: "No.",
   },
-  {
-    q: "Is my payment secure?",
-    a: "Payments are handled by Stripe's hosted checkout. We never see your card details.",
-  },
-  {
-    q: "Do I have to leave a name or message?",
-    a: "Nope — both are optional. Leave them blank to post anonymously.",
-  },
-  {
-    q: "What is the point of this?",
-    a: "The Pit is a little moment of shared experience, a reminder of the passage of time and the impermanence of all things. It's a place to reflect on the past, acknowledge the present, and contemplate the future.",
-  },
-  {
-    q: "What if I have a problem?",
-    a: (
-      <>
-        If you have any issues with the site or your payment, please contact us
-        at{" "}
-        <a href="mailto:thepitdotbiz@gmail.com">thepitdotbiz@gmail.com</a>.
-      </>
-    ),
-  },
+  // {
+  //   q: "Is my payment secure?",
+  //   a: "Payments are handled by Stripe's hosted checkout. We never see your card details.",
+  // },
+  // {
+  //   q: "Do I have to leave a name or message?",
+  //   a: "Nope — both are optional. Leave them blank to post anonymously.",
+  // },
+  // {
+  //   q: "What is the point of this?",
+  //   a: "The Pit is a little moment of shared experience, a reminder of the passage of time and the impermanence of all things. It's a place to reflect on the past, acknowledge the present, and contemplate the future.",
+  // },
+  // {
+  //   q: "What if I have a problem?",
+  //   a: (
+  //     <>
+  //       If you have any issues with the site or your payment, please contact us
+  //       at <a href="mailto:thepitdotbiz@gmail.com">thepitdotbiz@gmail.com</a>.
+  //     </>
+  //   ),
+  // },
 ];
 // ─────────────────────────────────────────────────────────────────────────────
 
