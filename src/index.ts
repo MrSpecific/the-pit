@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import type { AppEnv } from './types';
 import { checkout } from './routes/checkout';
 import { webhook } from './routes/webhook';
+import { squareWebhook } from './routes/squareWebhook';
 
 const app = new Hono<AppEnv>();
 
@@ -24,6 +25,7 @@ api.use('*', cors());
 api.get('/health', (c) => c.json({ ok: true }));
 api.route('/checkout', checkout);
 api.route('/webhooks/stripe', webhook);
+api.route('/webhooks/square', squareWebhook);
 
 app.route('/api', api);
 

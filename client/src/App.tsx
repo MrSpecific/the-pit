@@ -287,26 +287,29 @@ export function App() {
     if (formOpen) amountInput.current?.focus({ preventScroll: true });
   }, [formOpen]);
 
-  // On the success page, poll for the (now paid) message by its session id to
-  // confirm it landed and show the actual amount. The webhook may lag a few
-  // seconds, so we retry briefly.
+  // On the success page, poll for the (now paid) message to confirm it landed
+  // and show the actual amount. Stripe redirects carry ?session_id=...; Square
+  // redirects carry ?mid=<message id> (Square has no session-id template). The
+  // webhook may lag a few seconds, so we retry briefly.
   useEffect(() => {
     if (checkout !== "success" || !supabase) return;
     const client = supabase;
-    const sessionId = new URLSearchParams(window.location.search).get(
-      "session_id",
-    );
-    if (!sessionId) return;
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get("session_id");
+    const messageId = params.get("mid");
+    if (!sessionId && !messageId) return;
     let active = true;
     let timer: ReturnType<typeof setTimeout>;
     let tries = 0;
     const poll = async () => {
-      const { data } = await client
+      let query = client
         .from("messages")
         .select("amount_cents")
-        .eq("stripe_session_id", sessionId)
-        .eq("paid", true)
-        .maybeSingle();
+        .eq("paid", true);
+      query = sessionId
+        ? query.eq("stripe_session_id", sessionId)
+        : query.eq("id", messageId);
+      const { data } = await query.maybeSingle();
       if (!active) return;
       if (data) {
         setConfirmed({

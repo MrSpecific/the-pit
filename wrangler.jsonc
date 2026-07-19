@@ -39,4 +39,10 @@
   //   SUPABASE_SERVICE_ROLE_KEY
   //   STRIPE_SECRET_KEY
   //   STRIPE_WEBHOOK_SECRET
+  // Square fallback (optional — checkout is Stripe-only when these are unset;
+  // SQUARE_ENVIRONMENT should be "production" here, "sandbox" in .dev.vars):
+  //   SQUARE_ACCESS_TOKEN
+  //   SQUARE_LOCATION_ID
+  //   SQUARE_WEBHOOK_SIGNATURE_KEY
+  //   SQUARE_ENVIRONMENT
 }

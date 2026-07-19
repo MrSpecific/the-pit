@@ -18,8 +18,8 @@ datasource db {
 }
 
 /// One entry in the pit. Created (unpaid) when checkout starts, then flipped to
-/// paid by the verified Stripe webhook. Only paid rows are publicly visible
-/// (see sql/rls_and_realtime.sql).
+/// paid by the verified payment webhook (Stripe, or Square as the fallback
+/// processor). Only paid rows are publicly visible (see sql/rls_and_realtime.sql).
 model Message {
   id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name                  String    @db.VarChar(80)
@@ -27,8 +27,12 @@ model Message {
   amountCents           Int       @map("amount_cents")
   currency              String    @default("usd")
   paid                  Boolean   @default(false)
+  // Which processor is handling this message: "stripe" or "square".
+  provider              String    @default("stripe")
   stripeSessionId       String?   @map("stripe_session_id")
   stripePaymentIntentId String?   @map("stripe_payment_intent_id")
+  squareOrderId         String?   @map("square_order_id")
+  squarePaymentId       String?   @map("square_payment_id")
   createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   paidAt                DateTime? @map("paid_at") @db.Timestamptz(6)
   // Set when the payment is refunded; refunded messages drop out of the feed.
@@ -38,11 +42,16 @@ model Message {
   @@index([paid, createdAt])
   // The refund webhook looks a message up by its payment intent.
   @@index([stripePaymentIntentId])
+  // The Square webhook looks a message up by its order, then by its payment.
+  @@index([squareOrderId])
+  @@index([squarePaymentId])
   @@map("messages")
 }
 
-/// Stripe webhook idempotency ledger. The webhook records each event id here
-/// before processing; the unique constraint makes redelivered events no-ops.
+/// Webhook idempotency ledger. Each webhook records its event id here before
+/// processing; the unique constraint makes redelivered events no-ops.
+/// Despite the historical column name, this holds Stripe event ids ("evt_...")
+/// AND Square event ids (UUIDs) — the formats can't collide.
 model WebhookEvent {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   stripeEventId String   @unique @map("stripe_event_id")
