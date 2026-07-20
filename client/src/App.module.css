@@ -461,6 +461,16 @@
   min-height: 4.5rem;
 }
 
+/* iOS Safari auto-zooms into any focused field whose font-size is under 16px.
+ * On touch devices, hold the name/message fields at 1rem (= 16px) to keep the
+ * viewport still. The amount input is already far above the threshold. */
+@media (pointer: coarse) {
+  .input,
+  .textarea {
+    font-size: 1rem;
+  }
+}
+
 .input:focus,
 .textarea:focus,
 .amountBig:focus-within {
