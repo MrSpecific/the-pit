@@ -30,10 +30,11 @@
   margin: 0;
 }
 
-.canvas {
+.image {
   width: 100%;
   height: auto;
-  aspect-ratio: 1 / 1;
+  /* Matches the 2160x2880 posters; reserves space before they load. */
+  aspect-ratio: 3 / 4;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--glow-sm);
