@@ -36,6 +36,8 @@ const SPIN_PERIOD = 70; // seconds per revolution
 const DROP_LIFETIME = 90000; // ms from rim to throat
 const DROP_TURNS = -1; // extra revolutions; 0 = ride the vortex's own spin exactly
 const DROP_FONT = 9; // label size (viewBox units) at the rim
+const DUST_SIZE = 24; // tumbleweed size (viewBox units) at the rim — ~the label size
+const DUST_SPIN = -220; // tumbleweed self-rotation, degrees/second (rolls as it tumbles)
 
 type Vec3 = { x: number; y: number; z: number };
 
@@ -116,14 +118,24 @@ const usd = new Intl.NumberFormat("en-US", {
   currency: "USD",
 });
 
-export type VortexHandle = { drop: (amountCents: number) => void };
+export type VortexHandle = {
+  drop: (amountCents: number) => void;
+  // Toss the dust.svg tumbleweed in — swirls like an amount, but also spins.
+  dust: () => void;
+};
 
-type Drop = { id: number; label: string; baseAngle: number; start: number };
+type Drop = {
+  id: number;
+  kind: "amount" | "dust";
+  label: string; // unused for dust
+  baseAngle: number;
+  start: number;
+};
 
 export const Vortex = forwardRef<VortexHandle>(function Vortex(_props, ref) {
   const ringEls = useRef<(SVGPolygonElement | null)[]>([]);
   const spokeEls = useRef<(SVGPolylineElement | null)[]>([]);
-  const dropEls = useRef<Map<number, SVGTextElement | null>>(new Map());
+  const dropEls = useRef<Map<number, SVGGraphicsElement | null>>(new Map());
   const dropsRef = useRef<Drop[]>([]);
   const reduceRef = useRef(false);
   const idRef = useRef(0);
@@ -145,7 +157,22 @@ export const Vortex = forwardRef<VortexHandle>(function Vortex(_props, ref) {
           ...prev,
           {
             id,
+            kind: "amount",
             label: usd.format(amountCents / 100),
+            baseAngle: Math.random() * Math.PI * 2,
+            start: performance.now(),
+          },
+        ]);
+      },
+      dust() {
+        if (reduceRef.current) return; // respect reduced motion
+        const id = ++idRef.current;
+        setDrops((prev) => [
+          ...prev,
+          {
+            id,
+            kind: "dust",
+            label: "",
             baseAngle: Math.random() * Math.PI * 2,
             start: performance.now(),
           },
@@ -202,10 +229,27 @@ export const Vortex = forwardRef<VortexHandle>(function Vortex(_props, ref) {
             t < 0.05 ? t / 0.05 : 1,
             e > 0.55 ? Math.max(0, (1 - e) / 0.45) : 1,
           );
-          el.setAttribute("x", sx.toFixed(1));
-          el.setAttribute("y", sy.toFixed(1));
-          el.setAttribute("font-size", (DROP_FONT * s).toFixed(1));
-          el.setAttribute("opacity", op.toFixed(2));
+          if (d.kind === "dust") {
+            // Center the image on the spiral point and spin it about that
+            // center — rolling like a tumbleweed as it tumbles down.
+            const w = DUST_SIZE * s;
+            const half = w / 2;
+            const deg = ((now - d.start) / 1000) * DUST_SPIN;
+            el.setAttribute("x", (sx - half).toFixed(1));
+            el.setAttribute("y", (sy - half).toFixed(1));
+            el.setAttribute("width", w.toFixed(1));
+            el.setAttribute("height", w.toFixed(1));
+            el.setAttribute(
+              "transform",
+              `rotate(${deg.toFixed(1)} ${sx.toFixed(1)} ${sy.toFixed(1)})`,
+            );
+            el.setAttribute("opacity", op.toFixed(2));
+          } else {
+            el.setAttribute("x", sx.toFixed(1));
+            el.setAttribute("y", sy.toFixed(1));
+            el.setAttribute("font-size", (DROP_FONT * s).toFixed(1));
+            el.setAttribute("opacity", op.toFixed(2));
+          }
         }
         if (done.length)
           setDrops((prev) => prev.filter((d) => !done.includes(d.id)));
@@ -254,23 +298,39 @@ export const Vortex = forwardRef<VortexHandle>(function Vortex(_props, ref) {
           style={{ fill: "var(--green-bright)" }}
         />
 
-        {/* Amounts spiralling down into the pit. */}
-        {drops.map((d) => (
-          <text
-            key={d.id}
-            ref={(el) => {
-              if (el) dropEls.current.set(d.id, el);
-              else dropEls.current.delete(d.id);
-            }}
-            className={styles.amount}
-            x={CX}
-            y={CY}
-            textAnchor="middle"
-            opacity={0}
-          >
-            {d.label}
-          </text>
-        ))}
+        {/* Amounts (and the odd tumbleweed) spiralling down into the pit. */}
+        {drops.map((d) =>
+          d.kind === "dust" ? (
+            <image
+              key={d.id}
+              ref={(el) => {
+                if (el) dropEls.current.set(d.id, el);
+                else dropEls.current.delete(d.id);
+              }}
+              href="/dust.svg"
+              x={CX}
+              y={CY}
+              width={0}
+              height={0}
+              opacity={0}
+            />
+          ) : (
+            <text
+              key={d.id}
+              ref={(el) => {
+                if (el) dropEls.current.set(d.id, el);
+                else dropEls.current.delete(d.id);
+              }}
+              className={styles.amount}
+              x={CX}
+              y={CY}
+              textAnchor="middle"
+              opacity={0}
+            >
+              {d.label}
+            </text>
+          ),
+        )}
       </svg>
     </div>
   );

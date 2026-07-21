@@ -759,6 +759,15 @@ export function App() {
         sound
       </button>
 
+      {/* Invisible easter egg: toss a tumbleweed into the pit. */}
+      <button
+        type="button"
+        className={styles.dustCorner}
+        onClick={() => vortex.current?.dust()}
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+
       <Faq />
     </>
   );

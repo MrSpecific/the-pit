@@ -856,6 +856,23 @@
   box-shadow: var(--glow-sm);
 }
 
+/* Invisible easter-egg hit target, pinned to the top-right corner. No visual
+ * affordance by design — kept deliberately undiscoverable (even the cursor
+ * doesn't change) until someone clicks it and a tumbleweed rolls into the pit. */
+.dustCorner {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 10000;
+  width: 5rem;
+  height: 5rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
+  cursor: pointer;
+}
+
 .audioIcon {
   font-size: 0.8rem;
   line-height: 1;
