@@ -81,11 +81,16 @@ export interface AudioControls {
 }
 
 export function useAudio(): AudioControls {
-  const [enabled, setEnabled] = useState(readStoredPreference);
+  // `enabled` reflects whether sound is ACTUALLY playing — not merely the
+  // stored intent. The autoplay policy keeps the AudioContext suspended until a
+  // user gesture, so a persisted "on" can't resume on load; showing the toggle
+  // as "playing" before then is the bug we're avoiding. We start false and let
+  // the first interaction resume it (see the unlock effect below).
+  const [enabled, setEnabled] = useState(false);
   const ctxRef = useRef<AudioContext | null>(null);
   const masterRef = useRef<GainNode | null>(null);
   const tickTimer = useRef<number | null>(null);
-  const enabledRef = useRef(enabled);
+  const enabledRef = useRef(false);
   // File-based bed: the looping <audio> element, routed through the context so
   // it shares the master fade with the crackle blips.
   const bgElRef = useRef<HTMLAudioElement | null>(null);
@@ -154,6 +159,9 @@ export function useAudio(): AudioControls {
         if (Math.random() < 0.2) tick(ctx, master); // ~1 tick / 4–5s, irregular
       }, 900);
     }
+    // Sound is now actually running — reflect that in the toggle.
+    enabledRef.current = true;
+    setEnabled(true);
   }, []);
 
   const stop = useCallback(() => {
@@ -170,22 +178,23 @@ export function useAudio(): AudioControls {
     // Pause the looping asset after the fade so it doesn't keep decoding.
     const el = bgElRef.current;
     if (el) window.setTimeout(() => el.pause(), 300);
+    enabledRef.current = false;
+    setEnabled(false);
   }, []);
 
   const toggle = useCallback(() => {
     const next = !enabledRef.current;
-    enabledRef.current = next;
     try {
       localStorage.setItem(STORAGE_KEY, next ? "on" : "off");
     } catch {
       /* storage unavailable */
     }
-    // Run start()/stop() synchronously in the click handler — NOT inside the
-    // setEnabled updater. iOS Safari only unlocks/resumes an AudioContext from
-    // within the user-gesture call stack, and React may defer the updater.
+    // Run start()/stop() synchronously in the click handler — NOT deferred.
+    // iOS Safari only unlocks/resumes an AudioContext from within the
+    // user-gesture call stack. start()/stop() own the `enabled` state, so it
+    // only ever flips once sound is actually running (or stopped).
     if (next) start();
     else stop();
-    setEnabled(next);
   }, [start, stop]);
 
   const blip = useCallback(() => {
@@ -196,17 +205,21 @@ export function useAudio(): AudioControls {
   }, []);
 
   // If sound was left on from a previous visit, the autoplay policy still
-  // blocks starting it on load — so begin at the first user interaction.
+  // blocks starting it on load — so resume at the first user interaction, which
+  // then flips the toggle to its playing state.
   // NOTE: iOS only unlocks audio from `touchend`/`click`, NOT pointer/touch
   // *start* — using those would create a suspended context that never plays
   // until the next gesture, which is exactly the "works only after re-toggle"
   // bug. So we listen on the events iOS actually honors.
   useEffect(() => {
-    if (!enabledRef.current) return;
+    if (!readStoredPreference()) return;
     const events: (keyof WindowEventMap)[] = ["click", "touchend", "keydown"];
     const unlock = () => {
       events.forEach((e) => window.removeEventListener(e, unlock));
-      if (enabledRef.current) start();
+      // Skip if the gesture was the toggle itself turning sound off, or if it's
+      // already running — start() is idempotent but this avoids a needless
+      // fade re-trigger.
+      if (readStoredPreference() && !enabledRef.current) start();
     };
     events.forEach((e) => window.addEventListener(e, unlock));
     return () => events.forEach((e) => window.removeEventListener(e, unlock));
