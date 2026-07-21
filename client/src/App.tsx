@@ -147,7 +147,7 @@ export function App() {
         // Seed the pit with the most recent amounts, staggered with a large
         // semi-random gap so arrivals feel organic rather than synchronized.
         let delay = 600;
-        rows.slice(0, 8).forEach((m) => {
+        rows.slice(0, 20).forEach((m) => {
           timers.push(
             setTimeout(() => {
               if (!active) return;
@@ -407,6 +407,7 @@ export function App() {
             <button
               type="button"
               className={styles.tagline}
+              data-text="how much will you throw in the pit?"
               onClick={() => setFormOpen(true)}
             >
               how much will <span className={styles.italic}>you</span> throw in

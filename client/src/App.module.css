@@ -152,7 +152,8 @@
 }
 
 .tagline {
-  display: inline;
+  position: relative;
+  display: inline-block;
   margin: 0.7rem 0 0;
   padding: 0;
   border: 0;
@@ -163,9 +164,36 @@
   font-size: 0.8rem;
   letter-spacing: 0.04em;
   opacity: 0;
-  animation: tagline-fade-in 1.5s ease-out 10s forwards;
+  /* Fade in after 10s, then the same occasional whole-word jitter as the title.
+   * Parent opacity gates the chromatic ghosts too, so nothing flashes pre-fade. */
+  animation:
+    tagline-fade-in 1.5s ease-out 10s forwards,
+    glitch-skew 7s infinite steps(1);
   cursor: pointer;
   pointer-events: auto;
+}
+
+/* Two chromatic ghosts that slice + offset in brief bursts — matches the title. */
+.tagline::before,
+.tagline::after {
+  content: attr(data-text);
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  pointer-events: none;
+  text-shadow: none;
+  opacity: 0;
+}
+
+.tagline::before {
+  color: #ff5b6b;
+  animation: glitch-r 7s infinite steps(1);
+}
+
+.tagline::after {
+  color: #5be9ff;
+  animation: glitch-c 7s infinite steps(1);
 }
 
 .tagline:focus-visible {
