@@ -247,9 +247,11 @@ export const Vortex = forwardRef<VortexHandle>(function Vortex(_props, ref) {
             const w = DUST_SIZE * s * pop;
             const half = w / 2;
             const deg = (age / 1000) * DUST_SPIN;
-            // Snap to full opacity almost immediately (still fades out near
-            // the throat via the position-based term in `op`).
-            const dustOp = Math.min(Math.min(age / 120, 1), op);
+            // Snap to full opacity almost immediately — bypass `op`'s slow
+            // time-based fade-in and keep only its position-based fade-out so
+            // the mote still vanishes near the throat.
+            const fadeOut = e > 0.55 ? Math.max(0, (1 - e) / 0.45) : 1;
+            const dustOp = Math.min(age / 120, 1, fadeOut);
             el.setAttribute("x", (sx - half).toFixed(1));
             el.setAttribute("y", (sy - half).toFixed(1));
             el.setAttribute("width", w.toFixed(1));
