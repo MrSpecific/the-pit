@@ -717,14 +717,25 @@ export function App() {
                   // paginated/live items (higher index) animate immediately.
                   style={{ animationDelay: `${i < 12 ? i * 45 : 0}ms` }}
                 >
-                  <div className={styles.entryHead}>
+                  <button
+                    type="button"
+                    className={styles.entryHead}
+                    onClick={() => {
+                      vortex.current?.drop(m.amount_cents);
+                      audio.blip();
+                    }}
+                    title="Throw it back in the pit"
+                    aria-label={`Throw ${usd.format(
+                      m.amount_cents / 100,
+                    )} from ${m.name || "anonymous"} back into the pit`}
+                  >
                     <span className={styles.entryName}>
                       {m.name || "anonymous"}
                     </span>
                     <span className={styles.entryAmount}>
                       {usd.format(m.amount_cents / 100)}
                     </span>
-                  </div>
+                  </button>
                   {m.message && <p className={styles.entryBody}>{m.message}</p>}
                   <time className={styles.entryTime}>
                     {new Date(m.paid_at ?? m.created_at).toLocaleString()}

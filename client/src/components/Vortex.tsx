@@ -38,6 +38,14 @@ const DROP_TURNS = -1; // extra revolutions; 0 = ride the vortex's own spin exac
 const DROP_FONT = 9; // label size (viewBox units) at the rim
 const DUST_SIZE = 24; // tumbleweed size (viewBox units) at the rim — ~the label size
 const DUST_SPIN = -220; // tumbleweed self-rotation, degrees/second (rolls as it tumbles)
+const DUST_POP_MS = 320; // pop-in duration for dust — near-instant click feedback
+
+// Back-ease-out: overshoots past 1 then settles, for a springy "pop".
+const backOut = (p: number) => {
+  const c1 = 1.70158;
+  const c3 = c1 + 1;
+  return 1 + c3 * (p - 1) ** 3 + c1 * (p - 1) ** 2;
+};
 
 type Vec3 = { x: number; y: number; z: number };
 
@@ -232,9 +240,16 @@ export const Vortex = forwardRef<VortexHandle>(function Vortex(_props, ref) {
           if (d.kind === "dust") {
             // Center the image on the spiral point and spin it about that
             // center — rolling like a tumbleweed as it tumbles down.
-            const w = DUST_SIZE * s;
+            // Pop-in: scale up with a springy overshoot over the first
+            // DUST_POP_MS so the mote lands the instant it's clicked.
+            const age = now - d.start;
+            const pop = age < DUST_POP_MS ? backOut(age / DUST_POP_MS) : 1;
+            const w = DUST_SIZE * s * pop;
             const half = w / 2;
-            const deg = ((now - d.start) / 1000) * DUST_SPIN;
+            const deg = (age / 1000) * DUST_SPIN;
+            // Snap to full opacity almost immediately (still fades out near
+            // the throat via the position-based term in `op`).
+            const dustOp = Math.min(Math.min(age / 120, 1), op);
             el.setAttribute("x", (sx - half).toFixed(1));
             el.setAttribute("y", (sy - half).toFixed(1));
             el.setAttribute("width", w.toFixed(1));
@@ -243,7 +258,7 @@ export const Vortex = forwardRef<VortexHandle>(function Vortex(_props, ref) {
               "transform",
               `rotate(${deg.toFixed(1)} ${sx.toFixed(1)} ${sy.toFixed(1)})`,
             );
-            el.setAttribute("opacity", op.toFixed(2));
+            el.setAttribute("opacity", dustOp.toFixed(2));
           } else {
             el.setAttribute("x", sx.toFixed(1));
             el.setAttribute("y", sy.toFixed(1));

@@ -772,6 +772,26 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 1rem;
+  /* Reset the native button so the row reads as feed text, not a control. */
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    opacity 0.15s ease,
+    filter 0.15s ease;
+}
+
+.entryHead:hover,
+.entryHead:focus-visible {
+  filter: brightness(1.25);
+}
+
+.entryHead:active {
+  opacity: 0.6;
 }
 
 .entryName {
