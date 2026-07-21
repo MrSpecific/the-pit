@@ -19,5 +19,10 @@ export default defineConfig({
     proxy: {
       '/api': 'http://localhost:8787',
     },
+    // Allow serving the shared module in ../src (e.g. lib/contentFilter) to the
+    // client during dev — it lives above the Vite root (client/).
+    fs: {
+      allow: [fileURLToPath(new URL('.', import.meta.url))],
+    },
   },
 });

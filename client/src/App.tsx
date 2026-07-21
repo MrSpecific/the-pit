@@ -117,6 +117,43 @@ export function App() {
     messagesRef.current = messages;
   }, [messages]);
 
+  // Reconcile after a realtime reconnect. postgres_changes doesn't backfill
+  // events missed while the socket was down, so on every re-subscribe we re-read
+  // the authoritative total (fixes any drift) and re-fetch the latest page,
+  // adding any newly-paid rows we hadn't seen to the feed and the pit. Refunds
+  // missed mid-outage aren't re-detected here, but pit_total still corrects the
+  // number, and they clear from the feed on the next full load.
+  const resync = useCallback(async () => {
+    if (!supabase) return;
+    const client = supabase;
+    const [totalRes, pageRes] = await Promise.all([
+      client.rpc("pit_total"),
+      client
+        .from("messages")
+        .select(MESSAGE_COLUMNS)
+        .eq("paid", true)
+        .order("created_at", { ascending: false })
+        .limit(PAGE_SIZE),
+    ]);
+    if (!totalRes.error) setTotal(Number(totalRes.data) || 0);
+    if (pageRes.error || !pageRes.data) return;
+    const rows = pageRes.data as PitMessage[];
+    // Newest-first, all newer than anything we hold, so prepending preserves
+    // order. Add to knownIds first so a concurrent realtime event can't double
+    // count — the total already comes from the authoritative RPC above.
+    const fresh = rows.filter((m) => !knownIds.current.has(m.id));
+    if (!fresh.length) return;
+    fresh.forEach((m) => knownIds.current.add(m.id));
+    setMessages((prev) => {
+      const seen = new Set(prev.map((m) => m.id));
+      const add = fresh.filter((m) => !seen.has(m.id));
+      return add.length ? [...add, ...prev] : prev;
+    });
+    fresh.forEach((m) => vortex.current?.drop(m.amount_cents));
+    audio.blip();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Load the first page, then subscribe for new paid messages. A row is
   // inserted hidden (paid = false) and only becomes visible — to this query and
   // to realtime — once the webhook flips it to paid, so we react to that.
@@ -164,6 +201,12 @@ export function App() {
       if (active && !error) setTotal(Number(data) || 0);
     });
 
+    // Scoped to this channel's lifetime (resets when the effect re-runs and
+    // builds a fresh channel), but persists across the channel's own automatic
+    // reconnects — which is exactly when we want to tell an initial subscribe
+    // apart from a reconnect.
+    let subscribedOnce = false;
+
     const channel = client
       .channel("public:messages")
       .on(
@@ -199,9 +242,13 @@ export function App() {
               audio.blip();
               setTotal((t) => t + (row as PitMessage).amount_cents);
             }
-          } else {
-            knownIds.current.delete(id);
+          } else if (knownIds.current.has(id)) {
             // Refund/removal — pull its amount back out of the running total.
+            // Guarded on knownIds so we only ever reverse a row we actually
+            // counted: DELETE events bypass RLS, so the browser also receives
+            // deletes for unpaid rows it never saw (abandoned-checkout cleanup),
+            // and those must not touch the total.
+            knownIds.current.delete(id);
             const amt = row?.amount_cents ?? old?.amount_cents;
             if (amt) setTotal((t) => Math.max(0, t - amt));
           }
@@ -218,7 +265,14 @@ export function App() {
         // CHANNEL_ERROR / TIMED_OUT means the subscription itself failed
         // (realtime auth, RLS, or the table not in the publication) — in that
         // case no postgres_changes ever arrive, silently, without this log.
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+        if (status === "SUBSCRIBED") {
+          // Fires on the initial subscribe and again after every automatic
+          // reconnect. The first is covered by the initial load above; each
+          // later one means we may have missed events while down, so reconcile.
+          if (subscribedOnce) resync();
+          else subscribedOnce = true;
+          console.debug("[the-pit] realtime status:", status);
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           console.error("[the-pit] realtime subscribe failed:", status, err);
         } else {
           console.debug("[the-pit] realtime status:", status);

@@ -3,6 +3,7 @@ import type { AppEnv } from "../types";
 import { getStripe } from "../lib/stripe";
 import { createSquarePaymentLink, isSquareConfigured } from "../lib/square";
 import { getSupabaseAdmin } from "../lib/supabase";
+import { redact } from "../lib/contentFilter";
 
 export const checkout = new Hono<AppEnv>();
 
@@ -70,12 +71,23 @@ checkout.post("/", async (c) => {
     );
   }
 
+  // Redact slurs / hate speech before anything is stored — the feed is public
+  // and read straight from the DB, so the raw term must never be persisted.
+  // (Swear words are intentionally left intact; see lib/contentFilter.ts.)
+  const safeName = redact(name);
+  const safeMessage = redact(message);
+
   const supabase = getSupabaseAdmin(c.env);
 
   // 2. Create the pending (unpaid) message.
   const { data: pending, error: insertError } = await supabase
     .from("messages")
-    .insert({ name, message, amount_cents: amountCents, currency: CURRENCY })
+    .insert({
+      name: safeName,
+      message: safeMessage,
+      amount_cents: amountCents,
+      currency: CURRENCY,
+    })
     .select("id")
     .single();
 
