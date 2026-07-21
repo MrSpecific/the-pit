@@ -380,6 +380,12 @@ export function App() {
     setFormOpen(true);
   }
 
+  function dismiss() {
+    setCheckout(null);
+    setConfirmed(null);
+    window.history.replaceState({}, "", "/");
+  }
+
   function viewFeed() {
     setCheckout(null);
     window.history.replaceState({}, "", "/");
@@ -418,9 +424,15 @@ export function App() {
             >
               {checkout === "success" ? (
                 <>
-                  <div className={styles.checkoutMark} aria-hidden="true">
+                  <button
+                    type="button"
+                    className={styles.checkoutMark}
+                    onClick={dismiss}
+                    aria-label="Close"
+                    title="Close"
+                  >
                     ✓
-                  </div>
+                  </button>
                   <h2 className={styles.checkoutTitle}>
                     {confirmed
                       ? `${usd.format(confirmed.amount / 100)} is in the pit`
@@ -428,8 +440,8 @@ export function App() {
                   </h2>
                   <p className={styles.checkoutText}>
                     {confirmed
-                      ? "Your money is gone. The Pit is satisfied."
-                      : "Confirming your offering — it'll drop in any second now."}
+                      ? "Your money is gone."
+                      : "Confirming your offering..."}
                     {!confirmed && (
                       <span className={styles.cursor} aria-hidden="true" />
                     )}

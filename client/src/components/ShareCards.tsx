@@ -96,8 +96,10 @@ export function ShareCards({ amountCents }: { amountCents: number }) {
         text: card.shareText(amount),
         url: `https://${SITE}/`,
       });
-    } catch {
-      // User dismissed the sheet, or it failed — fall back to a download.
+    } catch (err) {
+      // Dismissing the sheet rejects with AbortError — that's a choice, not a
+      // failure; don't answer it with a surprise download.
+      if (err instanceof DOMException && err.name === "AbortError") return;
       download(card);
     }
   }
@@ -118,26 +120,34 @@ export function ShareCards({ amountCents }: { amountCents: number }) {
               onError={() => setLoadedCount((n) => n + 1)}
             />
             <figcaption className={styles.actions}>
-              {canShareFiles && (
+              {/* With a native share sheet (iOS/Android), the sheet's "Save
+                  Image" is the only route into the photo library — <a download>
+                  would strand the file in the Files app. Without one (desktop),
+                  a plain download is the right behavior. */}
+              {canShareFiles ? (
                 <button
                   type="button"
                   className={styles.action}
                   onClick={() => share(card)}
                 >
-                  share
+                  save / share
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.action}
+                  onClick={() => download(card)}
+                >
+                  download
                 </button>
               )}
-              <button
-                type="button"
-                className={styles.action}
-                onClick={() => download(card)}
-              >
-                download
-              </button>
             </figcaption>
           </figure>
         ))}
       </div>
+      {canShareFiles && (
+        <p className={styles.hint}>or long-press a card to save it to your photos</p>
+      )}
     </div>
   );
 }

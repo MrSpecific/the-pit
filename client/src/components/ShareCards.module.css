@@ -46,6 +46,14 @@
   justify-content: center;
 }
 
+.hint {
+  margin: 0.6rem 0 0;
+  text-align: center;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  color: var(--green-dim);
+}
+
 .action {
   flex: 1;
   font: inherit;

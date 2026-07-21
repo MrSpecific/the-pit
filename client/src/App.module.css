@@ -307,14 +307,31 @@
 .checkoutMark {
   width: 2.4rem;
   height: 2.4rem;
+  padding: 0;
   display: grid;
   place-items: center;
   border: 1px solid var(--border-strong);
   border-radius: 50%;
+  background: transparent;
+  background-color: transparent;
   color: var(--green-bright);
   font-size: 1.2rem;
   text-shadow: var(--glow-text);
   box-shadow: var(--glow-sm);
+  cursor: pointer;
+  transition:
+    box-shadow 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.checkoutMark:hover {
+  border-color: var(--green-bright);
+  box-shadow: var(--glow-md, var(--glow-sm));
+}
+
+.checkoutMark:focus-visible {
+  outline: 1px solid var(--green-bright);
+  outline-offset: 2px;
 }
 
 .checkoutTitle {
