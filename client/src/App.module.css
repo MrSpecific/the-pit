@@ -638,7 +638,8 @@
 }
 
 .submit {
-  justify-self: start;
+  justify-self: center;
+  width: 100%;
   font: inherit;
   font-size: 0.85rem;
   text-transform: uppercase;

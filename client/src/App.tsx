@@ -287,6 +287,16 @@ export function App() {
     if (formOpen) amountInput.current?.focus({ preventScroll: true });
   }, [formOpen]);
 
+  // Escape closes the throw-money form, matching the overlay/minimize buttons.
+  useEffect(() => {
+    if (!formOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFormOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [formOpen]);
+
   // On the success page, poll for the (now paid) message to confirm it landed
   // and show the actual amount. Stripe redirects carry ?session_id=...; Square
   // redirects carry ?mid=<message id> (Square has no session-id template). The
@@ -469,7 +479,7 @@ export function App() {
                 <>
                   <h2 className={styles.checkoutTitle}>checkout canceled</h2>
                   <p className={styles.checkoutText}>
-                    You weren't charged. The void remains hungry.
+                    You weren't charged. The pit remains hungry.
                   </p>
                   <div className={styles.checkoutActions}>
                     <button
