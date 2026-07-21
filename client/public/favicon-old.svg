@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" fill="#050805" />
+  <!-- Concentric vortex rings drawing the eye to a glowing core. -->
+  <g fill="none" stroke="#2bff88" stroke-width="2.4">
+    <circle cx="32" cy="32" r="27" opacity="0.45" />
+    <circle cx="32" cy="32" r="19.5" opacity="0.65" />
+    <circle cx="32" cy="32" r="12" opacity="0.85" />
+  </g>
+  <circle cx="32" cy="32" r="4.2" fill="#8dffbe" />
+</svg>
